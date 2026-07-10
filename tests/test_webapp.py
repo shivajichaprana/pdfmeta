@@ -219,6 +219,39 @@ def test_batch_apply_bad_token(client):
     assert resp.status_code == 400
 
 
+# --------------------------------------------------- local-only security guard
+
+
+def test_rejects_foreign_host(client):
+    # Simulates DNS rebinding: a request addressed to some other hostname.
+    resp = client.get("/", headers={"Host": "evil.example.com"})
+    assert resp.status_code == 403
+
+
+def test_rejects_cross_origin_post(client):
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(_pdf_bytes()), "f.pdf")},
+        content_type="multipart/form-data",
+        headers={"Origin": "https://evil.example.com"},
+    )
+    assert resp.status_code == 403
+
+
+def test_allows_same_origin_post(client):
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(_pdf_bytes()), "f.pdf")},
+        content_type="multipart/form-data",
+        headers={"Origin": "http://127.0.0.1:8000"},
+    )
+    assert resp.status_code == 200
+
+
+def test_localhost_get_ok(client):
+    assert client.get("/", headers={"Host": "localhost:8000"}).status_code == 200
+
+
 def test_editor_page_has_scrub_button(client):
     token = _open_and_get_token(client, _pdf_bytes())
     # Re-open to get the editor page body containing the button.

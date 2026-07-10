@@ -19,6 +19,7 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import (
     Flask,
@@ -37,6 +38,7 @@ _UPLOAD_DIR = Path(tempfile.gettempdir()) / "pdfmeta_gui"
 _TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
 _MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 _STALE_SECONDS = 3600  # remove abandoned uploads older than an hour
+_LOCAL_HOSTS = {"127.0.0.1", "localhost"}  # the only hosts the GUI trusts
 
 
 def _token_path(token: str) -> Path:
@@ -337,6 +339,21 @@ _PAGE = """<!doctype html>
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = _MAX_UPLOAD_BYTES
+
+    @app.before_request
+    def _guard_local_only() -> None:
+        # The editor is meant to be reached only from your own browser tab on
+        # this machine. These two checks stop a malicious website you happen to
+        # be visiting from talking to it:
+        #   1. Host allow-list defeats DNS-rebinding (which would let a site
+        #      read your PDF's metadata).
+        #   2. Origin check rejects cross-site form POSTs (CSRF).
+        if request.host.split(":")[0] not in _LOCAL_HOSTS:
+            abort(403)
+        if request.method == "POST":
+            origin = request.headers.get("Origin")
+            if origin is not None and urlsplit(origin).hostname not in _LOCAL_HOSTS:
+                abort(403)
 
     @app.get("/")
     def index() -> str:
