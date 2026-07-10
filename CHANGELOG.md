@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Developer tooling and quality gates: Ruff (lint + format), strict mypy
+  type-checking, and test coverage. CI now runs lint, type-check, and the test
+  suite across Python 3.9–3.13 on Linux, macOS, and Windows, with pip caching.
+- Automated PyPI release workflow (on `v*` tags, via trusted publishing).
+- Community health files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and PR
+  templates, Dependabot, a pre-commit config, and `.editorconfig`.
+
+### Changed
+- Modernized type annotations throughout; the package type-checks under mypy
+  `--strict`.
+
 ## [0.1.0] - 2026-07-10
 
 Initial release.

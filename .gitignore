@@ -9,10 +9,13 @@ dist/
 venv/
 env/
 
-# Test / coverage
+# Test / coverage / tooling caches
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # Editors / OS
 .vscode/

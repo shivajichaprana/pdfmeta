@@ -2,12 +2,20 @@
 
 [![CI](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml/badge.svg)](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A small, bulletproof command-line tool to **view and change PDF metadata** using
 a simple folder + JSON workflow. Built on [`pikepdf`](https://github.com/pikepdf/pikepdf),
 so it edits the PDF in place without re-rendering pages, and keeps the XMP
 metadata stream in sync.
+
+**Why pdfmeta?** Online PDF-metadata editors make you upload your file to a
+stranger's server — not great for a payslip, contract, or anything private.
+pdfmeta does everything **on your own machine**, works on **many PDFs at once**
+from a JSON template, and reads back **every tag actually in the file** so you
+can verify the result. It's tiny, typed, and thoroughly tested.
 
 Two commands cover the whole workflow:
 
@@ -182,11 +190,23 @@ with PDFMetadataEditor("report.pdf") as ed:
 ## Development
 
 ```bash
-pip install -e ".[dev]"    # installs pdfmeta plus pytest
-pytest
+pip install -e ".[dev]"    # pdfmeta + pytest + flask
+pip install ruff mypy      # lint + type-check tools
+
+pytest --cov               # tests with coverage
+ruff check src tests       # lint
+ruff format src tests      # format
+mypy                       # strict type-check
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
+Optionally install the git hooks so this runs on every commit:
+
+```bash
+pip install pre-commit && pre-commit install
+```
+
+CI runs lint, strict type-checking, and the test suite across Python 3.9–3.13 on
+Linux, macOS, and Windows. See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## How metadata works in a PDF
 

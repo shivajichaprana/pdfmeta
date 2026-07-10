@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import List, Optional
 
 from . import __version__
 from .batch import process_folder
@@ -30,7 +29,7 @@ DEFAULT_JSON_DIR = "input_json"
 DEFAULT_OUT_DIR = "output"
 
 
-def _print_sections(sections: dict) -> None:
+def _print_sections(sections: dict[str, dict[str, str]]) -> None:
     """Print `view` output, one titled section per part of the metadata."""
     any_printed = False
     for title, data in sections.items():
@@ -54,7 +53,7 @@ def _run_gui(port: int, open_browser: bool = True) -> int:
     except ImportError:
         print(
             "The GUI needs Flask, which isn't installed.\n"
-            "Install it with:  pip install \"pdfmeta[gui]\"",
+            'Install it with:  pip install "pdfmeta[gui]"',
             file=sys.stderr,
         )
         return 1
@@ -74,9 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="pdfmeta",
         description="View and change PDF metadata.",
     )
-    parser.add_argument(
-        "--version", action="version", version=f"pdfmeta {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"pdfmeta {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     # view — check the metadata actually in a PDF
@@ -98,31 +95,44 @@ def build_parser() -> argparse.ArgumentParser:
             "Original PDFs are never modified."
         ),
     )
-    p_run.add_argument("--pdf-dir", default=DEFAULT_PDF_DIR,
-                       help=f"Folder of input PDFs (default: {DEFAULT_PDF_DIR}).")
-    p_run.add_argument("--json-dir", default=DEFAULT_JSON_DIR,
-                       help=f"Folder of input JSON files (default: {DEFAULT_JSON_DIR}).")
-    p_run.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
-                       help=f"Folder for result PDFs (default: {DEFAULT_OUT_DIR}).")
-    p_run.add_argument("--merge", action="store_true",
-                       help="Add/update the JSON fields but keep other existing "
-                            "metadata (default: replace to match the JSON exactly).")
+    p_run.add_argument(
+        "--pdf-dir",
+        default=DEFAULT_PDF_DIR,
+        help=f"Folder of input PDFs (default: {DEFAULT_PDF_DIR}).",
+    )
+    p_run.add_argument(
+        "--json-dir",
+        default=DEFAULT_JSON_DIR,
+        help=f"Folder of input JSON files (default: {DEFAULT_JSON_DIR}).",
+    )
+    p_run.add_argument(
+        "--out-dir",
+        default=DEFAULT_OUT_DIR,
+        help=f"Folder for result PDFs (default: {DEFAULT_OUT_DIR}).",
+    )
+    p_run.add_argument(
+        "--merge",
+        action="store_true",
+        help="Add/update the JSON fields but keep other existing "
+        "metadata (default: replace to match the JSON exactly).",
+    )
 
     # gui — local browser-based editor
     p_gui = sub.add_parser(
         "gui",
         help="Launch the local browser-based metadata editor.",
         description="Open a small web page on this computer to upload a PDF, edit "
-                    "its metadata tags, and download the result. Nothing leaves "
-                    "your machine.",
+        "its metadata tags, and download the result. Nothing leaves "
+        "your machine.",
     )
     p_gui.add_argument("--port", type=int, default=8000, help="Port (default: 8000).")
-    p_gui.add_argument("--no-browser", action="store_true",
-                       help="Don't open a browser window automatically.")
+    p_gui.add_argument(
+        "--no-browser", action="store_true", help="Don't open a browser window automatically."
+    )
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -137,9 +147,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
 
         if args.command == "run":
-            results = process_folder(
-                args.pdf_dir, args.json_dir, args.out_dir, merge=args.merge
-            )
+            results = process_folder(args.pdf_dir, args.json_dir, args.out_dir, merge=args.merge)
             if not results:
                 print(f"No PDF files found in {args.pdf_dir}/.")
                 return 0

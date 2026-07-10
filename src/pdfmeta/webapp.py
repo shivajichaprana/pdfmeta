@@ -10,6 +10,7 @@ Flask is an optional dependency; install it with ``pip install "pdfmeta[gui]"``.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import secrets
 import tempfile
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from flask import (
     Flask,
+    Response,
     abort,
     after_this_request,
     render_template_string,
@@ -179,11 +181,10 @@ def create_app() -> Flask:
         return render_template_string(_PAGE, token=None)
 
     @app.post("/open")
-    def open_pdf():
+    def open_pdf() -> str:
         uploaded = request.files.get("pdf")
         if uploaded is None or not uploaded.filename:
-            return render_template_string(_PAGE, token=None,
-                                          error="Please choose a PDF file.")
+            return render_template_string(_PAGE, token=None, error="Please choose a PDF file.")
         _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         _sweep_stale()  # clear out any abandoned uploads
         token = secrets.token_hex(16)
@@ -200,13 +201,13 @@ def create_app() -> Flask:
         )
 
     @app.post("/save")
-    def save_pdf():
+    def save_pdf() -> Response | str:
         token = request.form.get("token", "")
         path = _token_path(token)
         if not path.is_file():
             return render_template_string(
-                _PAGE, token=None,
-                error="That editing session expired. Please open the PDF again.")
+                _PAGE, token=None, error="That editing session expired. Please open the PDF again."
+            )
         keys = request.form.getlist("key")
         values = request.form.getlist("value")
         fields = {k.strip(): v for k, v in zip(keys, values) if k.strip()}
@@ -216,21 +217,21 @@ def create_app() -> Flask:
                 editor.save(path)
         except PDFMetadataError as exc:
             return render_template_string(
-                _PAGE, token=None, error=f"Could not apply changes: {exc}")
+                _PAGE, token=None, error=f"Could not apply changes: {exc}"
+            )
 
         @after_this_request
-        def _cleanup(response):
+        def _cleanup(response: Response) -> Response:
             # Remove the temp file once the download has been served. On POSIX
             # send_file has already read it; on Windows the handle may still be
             # open, in which case _sweep_stale() reclaims it on a later /open.
-            try:
+            with contextlib.suppress(OSError):
                 path.unlink(missing_ok=True)
-            except OSError:
-                pass
             return response
 
         download_name = _safe_download_name(request.form.get("filename", ""))
-        return send_file(path, as_attachment=True,
-                         download_name=download_name, mimetype="application/pdf")
+        return send_file(
+            path, as_attachment=True, download_name=download_name, mimetype="application/pdf"
+        )
 
     return app

@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union
 
 import pikepdf
 from pikepdf.models.metadata import (
@@ -65,14 +64,15 @@ def _pretty_qname(clark: str) -> str:
     return clark
 
 
-def _stringify(value) -> str:
+def _stringify(value: object) -> str:
     """Render an XMP value (which may be a list/tuple) as a readable string."""
     if isinstance(value, (list, tuple)):
         return ", ".join(str(v) for v in value)
     return str(value)
 
+
 # Map friendly field names -> the /Key used inside the PDF docinfo dict.
-STANDARD_FIELDS: Dict[str, str] = {
+STANDARD_FIELDS: dict[str, str] = {
     "title": "/Title",
     "author": "/Author",
     "subject": "/Subject",
@@ -97,7 +97,7 @@ _XMP_MAP = {
 _XMP_ARRAY_KEYS = {"dc:creator"}
 
 # Friendly aliases for the two date fields -> their docinfo key.
-DATE_FIELDS: Dict[str, str] = {
+DATE_FIELDS: dict[str, str] = {
     "creationdate": "/CreationDate",
     "creation": "/CreationDate",
     "created": "/CreationDate",
@@ -144,11 +144,11 @@ def _parse_datetime(value: str) -> datetime:
     if v.upper().startswith("D:"):
         try:
             return decode_pdf_date(v)
-        except Exception:
-            raise PDFMetadataError(f"Could not understand the PDF date '{value}'.")
+        except Exception as exc:
+            raise PDFMetadataError(f"Could not understand the PDF date '{value}'.") from exc
 
     iso = v[:-1] + "+00:00" if v.endswith(("Z", "z")) else v
-    parsed: Optional[datetime] = None
+    parsed: datetime | None = None
     try:
         parsed = datetime.fromisoformat(iso)
     except ValueError:
@@ -194,22 +194,22 @@ def _to_pdf_date(value: str) -> str:
 # The mirrored standard fields (dc:title, dc:creator, dc:description,
 # pdf:Keywords, xmp:CreatorTool, pdf:Producer, xmp:CreateDate, xmp:ModifyDate)
 # are handled by the docinfo path and are deliberately NOT listed here.
-XMP_FIELDS: Dict[str, tuple] = {
-    "copyright":        ("dc:rights",              "langalt"),
-    "rights-marked":    ("xmpRights:Marked",       "bool"),
-    "license":          ("xmpRights:WebStatement", "text"),
-    "usage-terms":      ("xmpRights:UsageTerms",   "langalt"),
-    "owner":            ("xmpRights:Owner",        "array"),
-    "language":         ("dc:language",            "array"),
-    "publisher":        ("dc:publisher",           "array"),
-    "contributor":      ("dc:contributor",         "array"),
-    "rating":           ("xmp:Rating",             "text"),
-    "label":            ("xmp:Label",              "text"),
-    "metadata-date":    ("xmp:MetadataDate",       "date"),
-    "document-id":      ("xmpMM:DocumentID",       "text"),
-    "instance-id":      ("xmpMM:InstanceID",       "text"),
-    "pdfa-part":        ("pdfaid:part",            "text"),
-    "pdfa-conformance": ("pdfaid:conformance",     "text"),
+XMP_FIELDS: dict[str, tuple[str, str]] = {
+    "copyright": ("dc:rights", "langalt"),
+    "rights-marked": ("xmpRights:Marked", "bool"),
+    "license": ("xmpRights:WebStatement", "text"),
+    "usage-terms": ("xmpRights:UsageTerms", "langalt"),
+    "owner": ("xmpRights:Owner", "array"),
+    "language": ("dc:language", "array"),
+    "publisher": ("dc:publisher", "array"),
+    "contributor": ("dc:contributor", "array"),
+    "rating": ("xmp:Rating", "text"),
+    "label": ("xmp:Label", "text"),
+    "metadata-date": ("xmp:MetadataDate", "date"),
+    "document-id": ("xmpMM:DocumentID", "text"),
+    "instance-id": ("xmpMM:InstanceID", "text"),
+    "pdfa-part": ("pdfaid:part", "text"),
+    "pdfa-conformance": ("pdfaid:conformance", "text"),
 }
 
 # Extra spellings that map onto a canonical XMP field name.
@@ -229,7 +229,7 @@ _XMP_ALIASES = {
 # case) -> (xmp_key, kind). Matching is deliberately case-sensitive so that a
 # capitalized name like ``Owner`` is treated as a custom docinfo field and is
 # NOT shadowed by the XMP ``owner`` field — this keeps export/apply lossless.
-_XMP_LOOKUP: Dict[str, tuple] = {}
+_XMP_LOOKUP: dict[str, tuple[str, str]] = {}
 for _friendly, _spec in XMP_FIELDS.items():
     _XMP_LOOKUP[_friendly] = _spec
     _XMP_LOOKUP[_spec[0]] = _spec
@@ -239,8 +239,10 @@ for _alias, _target in _XMP_ALIASES.items():
 _BOOL_TRUE = {"true", "yes", "y", "1", "marked", "on"}
 _BOOL_FALSE = {"false", "no", "n", "0", "unmarked", "off"}
 _TRAPPED_MAP = {
-    "true": "/True", "yes": "/True",
-    "false": "/False", "no": "/False",
+    "true": "/True",
+    "yes": "/True",
+    "false": "/False",
+    "no": "/False",
     "unknown": "/Unknown",
 }
 
@@ -249,7 +251,7 @@ _TRAPPED_MAP = {
 _XMP_KEY_TO_FRIENDLY = {spec[0]: friendly for friendly, spec in XMP_FIELDS.items()}
 
 
-def _xmp_lookup(name: str) -> Optional[tuple]:
+def _xmp_lookup(name: str) -> tuple[str, str] | None:
     """Return ``(xmp_key, kind)`` if ``name`` refers to a known XMP field.
 
     Matching is case-sensitive: the documented field names are lowercase, so
@@ -271,18 +273,14 @@ def _to_xmp_bool(value: str) -> str:
         return "True"
     if v in _BOOL_FALSE:
         return "False"
-    raise PDFMetadataError(
-        f"Expected a yes/no value (true, false, yes, no), got '{value}'."
-    )
+    raise PDFMetadataError(f"Expected a yes/no value (true, false, yes, no), got '{value}'.")
 
 
-def _to_trapped(value: str) -> "pikepdf.Name":
+def _to_trapped(value: str) -> pikepdf.Name:
     """Normalize a trapped value to the PDF name /True, /False, or /Unknown."""
     v = value.strip().lstrip("/").lower()
     if v not in _TRAPPED_MAP:
-        raise PDFMetadataError(
-            f"Trapped must be True, False, or Unknown; got '{value}'."
-        )
+        raise PDFMetadataError(f"Trapped must be True, False, or Unknown; got '{value}'.")
     return pikepdf.Name(_TRAPPED_MAP[v])
 
 
@@ -321,7 +319,7 @@ class PDFMetadataEditor:
     >>> ed.save("out.pdf")
     """
 
-    def __init__(self, path: Union[str, Path]):
+    def __init__(self, path: str | Path):
         self.path = Path(path)
         if not self.path.exists():
             raise PDFMetadataError(f"File not found: {self.path}")
@@ -332,8 +330,7 @@ class PDFMetadataEditor:
             self._pdf = pikepdf.open(self.path, allow_overwriting_input=True)
         except pikepdf.PasswordError as exc:
             raise PDFMetadataError(
-                f"'{self.path.name}' is password-protected; "
-                "pdfmeta cannot open encrypted PDFs."
+                f"'{self.path.name}' is password-protected; pdfmeta cannot open encrypted PDFs."
             ) from exc
         except PDFMetadataError:
             raise
@@ -342,7 +339,7 @@ class PDFMetadataEditor:
 
     # ------------------------------------------------------------------ read
 
-    def read(self) -> Dict[str, str]:
+    def read(self) -> dict[str, str]:
         """Return every metadata field currently set.
 
         Includes the document-info fields (keyed without the leading slash,
@@ -350,30 +347,24 @@ class PDFMetadataEditor:
         present (keyed by their friendly name, e.g. ``copyright``, ``language``).
         Array-valued XMP fields are returned as a comma-separated string.
         """
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         for key, value in self._pdf.docinfo.items():
             result[str(key).lstrip("/")] = str(value)
         xmp = self._pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False)
         for friendly, (xmp_key, _kind) in XMP_FIELDS.items():
             if xmp_key in xmp:
-                value = xmp[xmp_key]
-                if isinstance(value, (list, tuple)):
-                    value = ", ".join(str(v) for v in value)
-                result[friendly] = str(value)
+                result[friendly] = _stringify(xmp[xmp_key])
         return result
 
-    def read_docinfo(self) -> Dict[str, str]:
+    def read_docinfo(self) -> dict[str, str]:
         """Return EVERY entry in the Document Information dictionary, verbatim.
 
         Keys keep their real names without the leading slash. Nothing is
         filtered, renamed, or inferred — this is exactly what is in the file.
         """
-        return {
-            str(key).lstrip("/"): str(value)
-            for key, value in self._pdf.docinfo.items()
-        }
+        return {str(key).lstrip("/"): str(value) for key, value in self._pdf.docinfo.items()}
 
-    def read_xmp(self) -> Dict[str, str]:
+    def read_xmp(self) -> dict[str, str]:
         """Return EVERY property actually present in the XMP packet.
 
         Keys are ``prefix:local`` for known namespaces (``dc:title``) and the
@@ -381,7 +372,7 @@ class PDFMetadataEditor:
         so it surfaces tags written by any tool, not just the ones pdfmeta
         knows how to set.
         """
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         if "/Metadata" not in self._pdf.Root:
             return result
         xmp = self._pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False)
@@ -389,7 +380,7 @@ class PDFMetadataEditor:
             result[_pretty_qname(clark)] = _stringify(value)
         return result
 
-    def read_all(self) -> Dict[str, Dict[str, str]]:
+    def read_all(self) -> dict[str, dict[str, str]]:
         """Return the complete metadata read directly from the file.
 
         A dict with two sections, ``"Document Info"`` and ``"XMP"``, each a
@@ -397,13 +388,13 @@ class PDFMetadataEditor:
         """
         return {"Document Info": self.read_docinfo(), "XMP": self.read_xmp()}
 
-    def xmp_packet(self) -> Optional[str]:
+    def xmp_packet(self) -> str | None:
         """Return the raw XMP XML packet exactly as stored, or ``None``."""
         if "/Metadata" not in self._pdf.Root:
             return None
         return bytes(self._pdf.Root.Metadata.read_bytes()).decode("utf-8", "replace")
 
-    def get_field(self, name: str) -> Optional[str]:
+    def get_field(self, name: str) -> str | None:
         """Return a single field's value, or ``None`` if it is not set."""
         xmp_spec = _xmp_lookup(name)
         if xmp_spec is not None:
@@ -445,21 +436,17 @@ class PDFMetadataEditor:
     def _set_xmp_field(self, xmp_key: str, kind: str, value: str) -> None:
         """Write a value to an XMP-only field, coercing to the right type."""
         if kind == "array":
-            payload: Union[str, list] = [
-                part.strip() for part in value.split(",") if part.strip()
-            ]
+            payload: str | list[str] = [part.strip() for part in value.split(",") if part.strip()]
         elif kind == "bool":
             payload = _to_xmp_bool(value)
         elif kind == "date":
             payload = _parse_datetime(value).isoformat()
         else:  # "text" or "langalt"
             payload = value
-        with self._pdf.open_metadata(
-            set_pikepdf_as_editor=False, update_docinfo=False
-        ) as xmp:
+        with self._pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as xmp:
             xmp[xmp_key] = payload
 
-    def set_many(self, fields: Dict[str, str]) -> None:
+    def set_many(self, fields: dict[str, str]) -> None:
         """Set several fields at once from a ``{name: value}`` mapping."""
         for name, value in fields.items():
             self.set_field(name, value)
@@ -470,9 +457,7 @@ class PDFMetadataEditor:
         if xmp_spec is not None:
             xmp_key = xmp_spec[0]
             removed = False
-            with self._pdf.open_metadata(
-                set_pikepdf_as_editor=False, update_docinfo=False
-            ) as xmp:
+            with self._pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as xmp:
                 if xmp_key in xmp:
                     del xmp[xmp_key]
                     removed = True
@@ -491,7 +476,7 @@ class PDFMetadataEditor:
         if "/Metadata" in self._pdf.Root:
             del self._pdf.Root["/Metadata"]
 
-    def replace_docinfo(self, fields: Dict[str, str]) -> None:
+    def replace_docinfo(self, fields: dict[str, str]) -> None:
         """Make the Document Information dictionary exactly ``fields``.
 
         Every current docinfo entry is removed (with its XMP mirror for the
@@ -509,14 +494,14 @@ class PDFMetadataEditor:
 
     # -------------------------------------------------------------- JSON I/O
 
-    def export_json(self, path: Union[str, Path]) -> None:
+    def export_json(self, path: str | Path) -> None:
         """Write all current metadata to a JSON file."""
         Path(path).write_text(
             json.dumps(self.read(), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
 
-    def import_json(self, path: Union[str, Path], replace: bool = False) -> None:
+    def import_json(self, path: str | Path, replace: bool = False) -> None:
         """Load metadata from a JSON file of ``{name: value}`` pairs.
 
         With ``replace=True`` all existing metadata is cleared first, so the
@@ -541,9 +526,9 @@ class PDFMetadataEditor:
         if not isinstance(data, dict):
             raise PDFMetadataError(
                 f'{json_path.name} must be a JSON object of "Field": "value" '
-                "pairs, e.g. {\"Title\": \"My Report\"}."
+                'pairs, e.g. {"Title": "My Report"}.'
             )
-        clean: Dict[str, str] = {}
+        clean: dict[str, str] = {}
         for key, value in data.items():
             if isinstance(value, (dict, list)) or value is None:
                 raise PDFMetadataError(
@@ -555,7 +540,7 @@ class PDFMetadataEditor:
             self.clear()
         self.set_many(clean)
 
-    def apply_json(self, path: Union[str, Path]) -> None:
+    def apply_json(self, path: str | Path) -> None:
         """Make the PDF's metadata match a JSON file *exactly*.
 
         All existing metadata is removed first, then every field in the JSON
@@ -567,7 +552,7 @@ class PDFMetadataEditor:
 
     # --------------------------------------------------------------- persist
 
-    def save(self, output: Optional[Union[str, Path]] = None) -> Path:
+    def save(self, output: str | Path | None = None) -> Path:
         """Write the PDF back out.
 
         If ``output`` is omitted the file is saved in place. pikepdf writes
@@ -581,20 +566,20 @@ class PDFMetadataEditor:
     def close(self) -> None:
         self._pdf.close()
 
-    def __enter__(self) -> "PDFMetadataEditor":
+    def __enter__(self) -> PDFMetadataEditor:
         return self
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: object) -> None:
         self.close()
 
     # -------------------------------------------------------------- internal
 
-    def _sync_xmp(self, key: str, value: Optional[str]) -> None:
+    def _sync_xmp(self, key: str, value: str | None) -> None:
         """Keep the XMP packet consistent for known standard fields."""
         # Date fields map to XMP dates stored in ISO 8601.
         if key in _XMP_DATE_MAP:
             xmp_key = _XMP_DATE_MAP[key]
-            xmp_value: Optional[str] = None
+            xmp_value: str | None = None
             if value is not None:
                 try:
                     xmp_value = decode_pdf_date(value).isoformat()
@@ -614,9 +599,7 @@ class PDFMetadataEditor:
             # reverse-syncs the XMP packet back onto the docinfo dict on exit,
             # which would wipe any pre-existing docinfo fields not present in
             # our freshly written XMP. docinfo is our source of truth.
-            with self._pdf.open_metadata(
-                set_pikepdf_as_editor=False, update_docinfo=False
-            ) as xmp:
+            with self._pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as xmp:
                 if xmp_value is None:
                     if xmp_key in xmp:
                         del xmp[xmp_key]

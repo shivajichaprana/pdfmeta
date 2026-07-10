@@ -50,3 +50,32 @@ pdfmeta = ["py.typed"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests import after pytest.importorskip; nested `with` blocks read fine here.
+"tests/*" = ["E402", "SIM117"]
+
+[tool.mypy]
+files = ["src/pdfmeta"]
+strict = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["pikepdf.*", "flask.*", "werkzeug.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["pdfmeta"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]

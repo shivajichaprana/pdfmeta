@@ -8,10 +8,10 @@ more), and arbitrary custom key/value metadata fields.
 
 from .editor import (
     DATE_FIELDS,
-    PDFMetadataEditor,
     STANDARD_FIELDS,
     XMP_FIELDS,
+    PDFMetadataEditor,
 )
 
-__all__ = ["PDFMetadataEditor", "STANDARD_FIELDS", "DATE_FIELDS", "XMP_FIELDS"]
+__all__ = ["DATE_FIELDS", "STANDARD_FIELDS", "XMP_FIELDS", "PDFMetadataEditor"]
 __version__ = "0.1.0"

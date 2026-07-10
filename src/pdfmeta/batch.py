@@ -17,21 +17,17 @@ Which JSON is used for a given PDF:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Union
 
 from .editor import PDFMetadataEditor, PDFMetadataError
 
 
-def _list_by_suffix(folder: Path, suffix: str) -> List[Path]:
+def _list_by_suffix(folder: Path, suffix: str) -> list[Path]:
     """Return files in ``folder`` whose extension matches ``suffix``, case-
     insensitively (so ``.PDF`` and ``.pdf`` are both found on every OS)."""
-    return sorted(
-        p for p in folder.iterdir()
-        if p.is_file() and p.suffix.lower() == suffix
-    )
+    return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() == suffix)
 
 
-def _pick_json(pdf: Path, json_files: List[Path]) -> Optional[Path]:
+def _pick_json(pdf: Path, json_files: list[Path]) -> Path | None:
     """Choose the JSON file to apply to ``pdf`` (see module docstring)."""
     same_name = pdf.stem + ".json"
     for jf in json_files:
@@ -43,11 +39,11 @@ def _pick_json(pdf: Path, json_files: List[Path]) -> Optional[Path]:
 
 
 def process_folder(
-    pdf_dir: Union[str, Path],
-    json_dir: Union[str, Path],
-    out_dir: Union[str, Path],
+    pdf_dir: str | Path,
+    json_dir: str | Path,
+    out_dir: str | Path,
     merge: bool = False,
-) -> List[Dict[str, Optional[str]]]:
+) -> list[dict[str, str | None]]:
     """Apply JSON metadata to every PDF in ``pdf_dir``.
 
     Each result is written to ``out_dir`` under the same file name; the input
@@ -83,32 +79,44 @@ def process_folder(
     except OSError as exc:
         raise PDFMetadataError(f"Could not create output folder {out_dir}: {exc}") from exc
 
-    results: List[Dict[str, Optional[str]]] = []
-    seen_outputs: Dict[str, str] = {}  # guards against clobbering within a run
+    results: list[dict[str, str | None]] = []
+    seen_outputs: dict[str, str] = {}  # guards against clobbering within a run
     for pdf in pdfs:
         json_file = _pick_json(pdf, json_files)
         if json_file is None:
             results.append(
-                {"pdf": pdf.name, "json": None, "output": None,
-                 "status": "skipped: no matching JSON (several JSON files, none named "
-                           f"{pdf.stem}.json)"}
+                {
+                    "pdf": pdf.name,
+                    "json": None,
+                    "output": None,
+                    "status": "skipped: no matching JSON (several JSON files, none named "
+                    f"{pdf.stem}.json)",
+                }
             )
             continue
         out_path = out_dir / pdf.name
         # Never write onto the original input file.
         if out_path.resolve() == pdf.resolve():
             results.append(
-                {"pdf": pdf.name, "json": json_file.name, "output": None,
-                 "status": "error: output path is the same as the input; refusing "
-                           "to overwrite the original (use a different --out-dir)"}
+                {
+                    "pdf": pdf.name,
+                    "json": json_file.name,
+                    "output": None,
+                    "status": "error: output path is the same as the input; refusing "
+                    "to overwrite the original (use a different --out-dir)",
+                }
             )
             continue
         # Never let two inputs map to the same output within one run.
         out_key = str(out_path).lower()
         if out_key in seen_outputs:
             results.append(
-                {"pdf": pdf.name, "json": json_file.name, "output": None,
-                 "status": f"error: output name collides with '{seen_outputs[out_key]}'"}
+                {
+                    "pdf": pdf.name,
+                    "json": json_file.name,
+                    "output": None,
+                    "status": f"error: output name collides with '{seen_outputs[out_key]}'",
+                }
             )
             continue
         try:
@@ -120,17 +128,19 @@ def process_folder(
                 editor.save(out_path)
             seen_outputs[out_key] = pdf.name
             results.append(
-                {"pdf": pdf.name, "json": json_file.name,
-                 "output": str(out_path), "status": "ok"}
+                {"pdf": pdf.name, "json": json_file.name, "output": str(out_path), "status": "ok"}
             )
         except PDFMetadataError as exc:
             results.append(
-                {"pdf": pdf.name, "json": json_file.name, "output": None,
-                 "status": f"error: {exc}"}
+                {"pdf": pdf.name, "json": json_file.name, "output": None, "status": f"error: {exc}"}
             )
         except Exception as exc:  # never let one bad file stop the whole batch
             results.append(
-                {"pdf": pdf.name, "json": json_file.name, "output": None,
-                 "status": f"error: {type(exc).__name__}: {exc}"}
+                {
+                    "pdf": pdf.name,
+                    "json": json_file.name,
+                    "output": None,
+                    "status": f"error: {type(exc).__name__}: {exc}",
+                }
             )
     return results

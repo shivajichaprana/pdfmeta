@@ -9,8 +9,8 @@ import pytest
 flask = pytest.importorskip("flask")
 from werkzeug.datastructures import MultiDict
 
-from pdfmeta.webapp import create_app
 from pdfmeta.editor import PDFMetadataEditor
+from pdfmeta.webapp import create_app
 
 
 @pytest.fixture
@@ -58,8 +58,9 @@ def test_open_rejects_non_pdf(client):
 
 
 def _open_and_get_token(client, pdf_bytes):
-    resp = client.post("/open", data={"pdf": (io.BytesIO(pdf_bytes), "f.pdf")},
-                       content_type="multipart/form-data")
+    resp = client.post(
+        "/open", data={"pdf": (io.BytesIO(pdf_bytes), "f.pdf")}, content_type="multipart/form-data"
+    )
     m = re.search(r'name="token" value="([0-9a-f]{32})"', resp.data.decode())
     assert m, "token not found in editor page"
     return m.group(1)
@@ -68,12 +69,19 @@ def _open_and_get_token(client, pdf_bytes):
 def test_save_applies_edits_and_downloads(client, tmp_path):
     token = _open_and_get_token(client, _pdf_bytes())
     # Edit Title, drop Author (omit it), add a new custom tag.
-    resp = client.post("/save", data=MultiDict([
-        ("token", token),
-        ("filename", "f.pdf"),
-        ("key", "Title"), ("value", "New Title"),
-        ("key", "Department"), ("value", "Finance"),
-    ]))
+    resp = client.post(
+        "/save",
+        data=MultiDict(
+            [
+                ("token", token),
+                ("filename", "f.pdf"),
+                ("key", "Title"),
+                ("value", "New Title"),
+                ("key", "Department"),
+                ("value", "Finance"),
+            ]
+        ),
+    )
     assert resp.status_code == 200
     assert resp.mimetype == "application/pdf"
     out = tmp_path / "out.pdf"
@@ -82,24 +90,25 @@ def test_save_applies_edits_and_downloads(client, tmp_path):
         data = ed.read_docinfo()
     assert data["Title"] == "New Title"
     assert data["Department"] == "Finance"
-    assert "Author" not in data          # deleted (omitted) tag is gone
+    assert "Author" not in data  # deleted (omitted) tag is gone
 
 
 def test_save_with_bad_token(client):
-    resp = client.post("/save", data={"token": "notavalidtoken",
-                                      "key": "Title", "value": "X"})
+    resp = client.post("/save", data={"token": "notavalidtoken", "key": "Title", "value": "X"})
     # invalid token -> 400 from _token_path guard
     assert resp.status_code == 400
 
 
 def test_save_cleans_up_temp_file(client, monkeypatch, tmp_path):
     import pdfmeta.webapp as wa
+
     monkeypatch.setattr(wa, "_UPLOAD_DIR", tmp_path / "up")
     token = _open_and_get_token(client, _pdf_bytes())
-    assert list((tmp_path / "up").glob("*.pdf"))          # temp exists after open
-    resp = client.post("/save", data=MultiDict([
-        ("token", token), ("filename", "f.pdf"),
-        ("key", "Title"), ("value", "X")]))
+    assert list((tmp_path / "up").glob("*.pdf"))  # temp exists after open
+    resp = client.post(
+        "/save",
+        data=MultiDict([("token", token), ("filename", "f.pdf"), ("key", "Title"), ("value", "X")]),
+    )
     assert resp.status_code == 200
     # after the download is served, the temp file is gone
     assert list((tmp_path / "up").glob("*.pdf")) == []
@@ -108,16 +117,22 @@ def test_save_cleans_up_temp_file(client, monkeypatch, tmp_path):
 def test_save_handles_nasty_filename(client):
     # A filename with a newline must not crash the save (no 500).
     token = _open_and_get_token(client, _pdf_bytes())
-    resp = client.post("/save", data=MultiDict([
-        ("token", token), ("filename", "bad\r\nname.pdf"),
-        ("key", "Title"), ("value", "X")]))
+    resp = client.post(
+        "/save",
+        data=MultiDict(
+            [("token", token), ("filename", "bad\r\nname.pdf"), ("key", "Title"), ("value", "X")]
+        ),
+    )
     assert resp.status_code == 200
     assert resp.mimetype == "application/pdf"
 
 
 def test_open_sweeps_stale_uploads(client, monkeypatch, tmp_path):
-    import os, time
+    import os
+    import time
+
     import pdfmeta.webapp as wa
+
     updir = tmp_path / "up"
     updir.mkdir()
     monkeypatch.setattr(wa, "_UPLOAD_DIR", updir)
@@ -126,5 +141,5 @@ def test_open_sweeps_stale_uploads(client, monkeypatch, tmp_path):
     stale.write_bytes(b"old")
     old = time.time() - 10
     os.utime(stale, (old, old))
-    _open_and_get_token(client, _pdf_bytes())   # triggers the sweep
+    _open_and_get_token(client, _pdf_bytes())  # triggers the sweep
     assert not stale.exists()

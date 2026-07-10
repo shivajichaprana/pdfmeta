@@ -9,14 +9,14 @@ import json
 import pikepdf
 import pytest
 
+from pdfmeta.batch import process_folder
+from pdfmeta.cli import main
 from pdfmeta.editor import (
     PDFMetadataEditor,
     PDFMetadataError,
     _normalize_key,
     _to_pdf_date,
 )
-from pdfmeta.batch import process_folder
-from pdfmeta.cli import main
 
 
 @pytest.fixture
@@ -33,11 +33,11 @@ def blank_pdf(tmp_path):
 def test_normalize_key():
     assert _normalize_key("title") == "/Title"
     assert _normalize_key("TITLE") == "/Title"
-    assert _normalize_key("/title") == "/Title"      # leading slash + case
+    assert _normalize_key("/title") == "/Title"  # leading slash + case
     assert _normalize_key("/TITLE") == "/Title"
     assert _normalize_key("Department") == "/Department"
     assert _normalize_key("/Custom") == "/Custom"
-    assert _normalize_key(" Author ") == "/Author"   # surrounding whitespace
+    assert _normalize_key(" Author ") == "/Author"  # surrounding whitespace
     with pytest.raises(PDFMetadataError):
         _normalize_key("   ")
     with pytest.raises(PDFMetadataError):
@@ -141,6 +141,7 @@ def test_cli_view_json(blank_pdf, capsys):
 
 # --------------------------------------------------------------------- edges
 
+
 def test_custom_key_with_spaces_and_unicode(blank_pdf):
     with PDFMetadataEditor(blank_pdf) as ed:
         ed.set_field("Review Status", "Approved")
@@ -226,9 +227,8 @@ def test_import_coerces_non_strings(blank_pdf, tmp_path):
 def test_import_rejects_non_object(blank_pdf, tmp_path):
     jpath = tmp_path / "bad.json"
     jpath.write_text(json.dumps(["not", "an", "object"]))
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError):
-            ed.import_json(jpath)
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError):
+        ed.import_json(jpath)
 
 
 def test_not_a_file(tmp_path):
@@ -261,18 +261,20 @@ def test_output_flag_leaves_original_untouched(blank_pdf, tmp_path):
         ed.set_field("title", "Copy")
         ed.save(out)
     with PDFMetadataEditor(blank_pdf) as ed:
-        assert "Title" not in ed.read()      # original unchanged
+        assert "Title" not in ed.read()  # original unchanged
     with PDFMetadataEditor(out) as ed:
-        assert ed.read()["Title"] == "Copy"   # new file has it
+        assert ed.read()["Title"] == "Copy"  # new file has it
 
 
 # ----------------------------------------------------------------------- CLI
+
 
 def test_cli_missing_file():
     assert main(["view", "/no/such/file.pdf"]) == 1
 
 
 # ------------------------------------------------------------------- dates
+
 
 def test_to_pdf_date_formats():
     # Date-only -> midnight, PDF format with an offset.
@@ -330,6 +332,7 @@ def test_apply_json_with_friendly_date(blank_pdf, tmp_path):
 
 # --------------------------------------------------------------- XMP fields
 
+
 def test_set_and_read_all_xmp_fields(blank_pdf):
     values = {
         "copyright": "© 2026 Shivaji",
@@ -355,10 +358,10 @@ def test_set_and_read_all_xmp_fields(blank_pdf):
     with PDFMetadataEditor(blank_pdf) as ed:
         data = ed.read()
     assert data["copyright"] == "© 2026 Shivaji"
-    assert data["rights-marked"] == "True"          # yes -> True
+    assert data["rights-marked"] == "True"  # yes -> True
     assert data["license"] == "https://example.com/license"
     assert data["owner"] == "Shivaji Chaprana"
-    assert data["language"] == "en, hi"              # array round-trips
+    assert data["language"] == "en, hi"  # array round-trips
     assert data["rating"] == "5"
     assert data["metadata-date"].startswith("2026-01-15T")
     assert data["document-id"] == "uuid:doc-123"
@@ -380,8 +383,8 @@ def test_xmp_field_does_not_touch_docinfo(tmp_path):
 
 def test_xmp_aliases(blank_pdf):
     with PDFMetadataEditor(blank_pdf) as ed:
-        ed.set_field("rights", "© alias")     # alias for copyright
-        ed.set_field("lang", "fr")            # alias for language
+        ed.set_field("rights", "© alias")  # alias for copyright
+        ed.set_field("lang", "fr")  # alias for language
         ed.save()
     with PDFMetadataEditor(blank_pdf) as ed:
         data = ed.read()
@@ -410,16 +413,20 @@ def test_rights_marked_no(blank_pdf):
 
 
 def test_rights_marked_invalid(blank_pdf):
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError):
-            ed.set_field("rights-marked", "maybe")
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError):
+        ed.set_field("rights-marked", "maybe")
 
 
 # --------------------------------------------------------------- Trapped
 
+
 def test_trapped_values(blank_pdf):
-    for given, expected in [("true", "/True"), ("False", "/False"),
-                            ("unknown", "/Unknown"), ("/True", "/True")]:
+    for given, expected in [
+        ("true", "/True"),
+        ("False", "/False"),
+        ("unknown", "/Unknown"),
+        ("/True", "/True"),
+    ]:
         with PDFMetadataEditor(blank_pdf) as ed:
             ed.set_field("trapped", given)
             ed.save()
@@ -428,9 +435,8 @@ def test_trapped_values(blank_pdf):
 
 
 def test_trapped_invalid(blank_pdf):
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError):
-            ed.set_field("trapped", "sometimes")
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError):
+        ed.set_field("trapped", "sometimes")
 
 
 def test_apply_replaces_including_xmp(tmp_path):
@@ -460,7 +466,7 @@ def test_capitalized_name_is_custom_docinfo_not_xmp(tmp_path):
     pdf.save(path)
     pdf.close()
     with PDFMetadataEditor(path) as ed:
-        assert ed.get_field("Owner") == "Legal Dept"     # reachable as docinfo
+        assert ed.get_field("Owner") == "Legal Dept"  # reachable as docinfo
         assert ed.read()["Owner"] == "Legal Dept"
 
     # export -> apply must preserve /Owner exactly (no relocation/rename).
@@ -473,13 +479,13 @@ def test_capitalized_name_is_custom_docinfo_not_xmp(tmp_path):
     with PDFMetadataEditor(path) as ed:
         data = ed.read()
     assert data["Owner"] == "Legal Dept"
-    assert "owner" not in data          # not moved into XMP
+    assert "owner" not in data  # not moved into XMP
     assert data["Title"] == "Report"
 
 
 def test_lowercase_owner_still_goes_to_xmp(blank_pdf):
     with PDFMetadataEditor(blank_pdf) as ed:
-        ed.set_field("owner", "Shivaji")   # lowercase -> XMP xmpRights:Owner
+        ed.set_field("owner", "Shivaji")  # lowercase -> XMP xmpRights:Owner
         ed.save()
     with pikepdf.open(blank_pdf) as pdf:
         assert pdf.open_metadata().get("xmpRights:Owner") == ["Shivaji"]
@@ -494,6 +500,7 @@ def test_metadata_date_accepts_pdf_date(blank_pdf):
 
 
 # --------------------------------------------------------- batch folder run
+
 
 def _make_pdf(path, title=None):
     pdf = pikepdf.new()
@@ -567,8 +574,8 @@ def test_batch_merge_keeps_existing(tmp_path):
     process_folder(pdf_dir, json_dir, out_dir, merge=True)
     with PDFMetadataEditor(out_dir / "a.pdf") as ed:
         data = ed.read()
-    assert data["Title"] == "Keep Me"     # kept
-    assert data["Author"] == "Added"      # added
+    assert data["Title"] == "Keep Me"  # kept
+    assert data["Author"] == "Added"  # added
 
 
 def test_batch_missing_dir_raises(tmp_path):
@@ -580,7 +587,7 @@ def test_batch_no_json_raises_clear_error(tmp_path):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "a.pdf")
     # json_dir exists but is empty
-    with pytest.raises(PDFMetadataError, match="No .json"):
+    with pytest.raises(PDFMetadataError, match=r"No \.json"):
         process_folder(pdf_dir, json_dir, out_dir)
 
 
@@ -603,20 +610,19 @@ def test_batch_malformed_json_reported_not_crash(tmp_path):
 def test_batch_bad_pdf_does_not_stop_good_ones(tmp_path):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "good.pdf")
-    (pdf_dir / "bad.pdf").write_text("not a real pdf")   # corrupt
+    (pdf_dir / "bad.pdf").write_text("not a real pdf")  # corrupt
     (json_dir / "meta.json").write_text(json.dumps({"Title": "T"}))
     results = process_folder(pdf_dir, json_dir, out_dir)
     by_name = {r["pdf"]: r["status"] for r in results}
     assert by_name["good.pdf"] == "ok"
     assert by_name["bad.pdf"].startswith("error")
-    assert (out_dir / "good.pdf").exists()       # good one still produced
+    assert (out_dir / "good.pdf").exists()  # good one still produced
     assert not (out_dir / "bad.pdf").exists()
 
 
 def test_import_json_missing_file_raises(blank_pdf, tmp_path):
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError, match="not found"):
-            ed.import_json(tmp_path / "nope.json")
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError, match="not found"):
+        ed.import_json(tmp_path / "nope.json")
 
 
 def test_import_json_invalid_json_raises(blank_pdf, tmp_path):
@@ -630,13 +636,11 @@ def test_import_json_invalid_json_raises(blank_pdf, tmp_path):
 def test_import_json_rejects_nested_values(blank_pdf, tmp_path):
     bad = tmp_path / "n.json"
     bad.write_text(json.dumps({"Title": {"nested": 1}}))
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError, match="must be text"):
-            ed.import_json(bad)
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError, match="must be text"):
+        ed.import_json(bad)
     bad.write_text(json.dumps({"Tags": [1, 2, 3]}))
-    with PDFMetadataEditor(blank_pdf) as ed:
-        with pytest.raises(PDFMetadataError, match="must be text"):
-            ed.import_json(bad)
+    with PDFMetadataEditor(blank_pdf) as ed, pytest.raises(PDFMetadataError, match="must be text"):
+        ed.import_json(bad)
 
 
 def test_batch_refuses_to_overwrite_original(tmp_path):
@@ -651,7 +655,7 @@ def test_batch_refuses_to_overwrite_original(tmp_path):
     results = process_folder(pdf_dir, json_dir, pdf_dir)  # out == in
     assert results[0]["status"].startswith("error")
     with PDFMetadataEditor(pdf_dir / "doc.pdf") as ed:
-        assert ed.read()["Title"] == "PRECIOUS"          # untouched
+        assert ed.read()["Title"] == "PRECIOUS"  # untouched
 
 
 def test_batch_uppercase_pdf_extension(tmp_path):
@@ -667,8 +671,9 @@ def test_cli_run_nonzero_exit_on_failure(tmp_path, capsys):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     (pdf_dir / "broken.pdf").write_text("not a pdf")
     (json_dir / "m.json").write_text(json.dumps({"Title": "T"}))
-    rc = main(["run", "--pdf-dir", str(pdf_dir),
-               "--json-dir", str(json_dir), "--out-dir", str(out_dir)])
+    rc = main(
+        ["run", "--pdf-dir", str(pdf_dir), "--json-dir", str(json_dir), "--out-dir", str(out_dir)]
+    )
     assert rc == 1
     assert "Done: 0 of 1" in capsys.readouterr().out
 
@@ -688,11 +693,12 @@ def test_view_survives_malformed_xmp(tmp_path):
     pdf.save(path)
     pdf.close()
     with PDFMetadataEditor(path) as ed:
-        result = ed.read_all()               # must not raise
+        result = ed.read_all()  # must not raise
     assert "Document Info" in result and "XMP" in result
 
 
 # ---------------------------------------------- complete reader (view --all)
+
 
 def test_read_all_surfaces_unknown_xmp_tags(blank_pdf):
     # Write XMP tags that are NOT in pdfmeta's registry, directly via pikepdf,
@@ -700,7 +706,7 @@ def test_read_all_surfaces_unknown_xmp_tags(blank_pdf):
     with pikepdf.open(blank_pdf, allow_overwriting_input=True) as pdf:
         with pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as x:
             x["dc:title"] = "T"
-            x["xmp:Nickname"] = "Nick"            # not in registry
+            x["xmp:Nickname"] = "Nick"  # not in registry
             x["photoshop:Headline"] = "Big News"  # not in registry
         pdf.docinfo["/Title"] = "T"
         pdf.docinfo["/CustomThing"] = "hello"
@@ -713,7 +719,7 @@ def test_read_all_surfaces_unknown_xmp_tags(blank_pdf):
     assert docinfo["Title"] == "T"
     assert docinfo["CustomThing"] == "hello"
     assert xmp["dc:title"] == "T"
-    assert xmp["xmp:Nickname"] == "Nick"          # surfaced despite unknown
+    assert xmp["xmp:Nickname"] == "Nick"  # surfaced despite unknown
     assert xmp["photoshop:Headline"] == "Big News"
 
 
@@ -737,14 +743,14 @@ def test_replace_docinfo(tmp_path):
     path = tmp_path / "r.pdf"
     _pdf_with_docinfo_only(path)  # Title + Author
     with PDFMetadataEditor(path) as ed:
-        ed.set_field("copyright", "© keep")   # an XMP-only tag
+        ed.set_field("copyright", "© keep")  # an XMP-only tag
         ed.replace_docinfo({"Title": "Only Title", "Department": "Finance"})
         ed.save()
     with PDFMetadataEditor(path) as ed:
         docinfo = ed.read_docinfo()
         allmeta = ed.read_all()
     assert docinfo == {"Title": "Only Title", "Department": "Finance"}
-    assert "Author" not in docinfo                     # dropped row removed
+    assert "Author" not in docinfo  # dropped row removed
     assert allmeta["XMP"].get("dc:rights") == "© keep"  # XMP-only tag preserved
 
 
@@ -752,12 +758,22 @@ def test_cli_run_merge(tmp_path, capsys):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "a.pdf", "Keep Me")
     (json_dir / "m.json").write_text(json.dumps({"Author": "Added"}))
-    rc = main(["run", "--merge", "--pdf-dir", str(pdf_dir),
-               "--json-dir", str(json_dir), "--out-dir", str(out_dir)])
+    rc = main(
+        [
+            "run",
+            "--merge",
+            "--pdf-dir",
+            str(pdf_dir),
+            "--json-dir",
+            str(json_dir),
+            "--out-dir",
+            str(out_dir),
+        ]
+    )
     assert rc == 0
     with PDFMetadataEditor(out_dir / "a.pdf") as ed:
         data = ed.read_docinfo()
-    assert data["Title"] == "Keep Me"      # kept by --merge
+    assert data["Title"] == "Keep Me"  # kept by --merge
     assert data["Author"] == "Added"
 
 
@@ -765,18 +781,24 @@ def test_cli_run(tmp_path, capsys):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "a.pdf")
     (json_dir / "meta.json").write_text(json.dumps({"Title": "T"}))
-    rc = main([
-        "run",
-        "--pdf-dir", str(pdf_dir),
-        "--json-dir", str(json_dir),
-        "--out-dir", str(out_dir),
-    ])
+    rc = main(
+        [
+            "run",
+            "--pdf-dir",
+            str(pdf_dir),
+            "--json-dir",
+            str(json_dir),
+            "--out-dir",
+            str(out_dir),
+        ]
+    )
     assert rc == 0
     assert (out_dir / "a.pdf").exists()
     assert "Done: 1 of 1" in capsys.readouterr().out
 
 
 # ------------------------------------------------- regression: XMP data loss
+
 
 def _pdf_with_docinfo_only(path):
     """A PDF that has docinfo metadata but NO XMP stream — like most real
