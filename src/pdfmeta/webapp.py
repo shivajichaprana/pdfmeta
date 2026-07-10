@@ -82,8 +82,13 @@ _PAGE = """<!doctype html>
   main { max-width: 820px; margin: 28px auto; padding: 0 20px; }
   .card { background: #fff; border: 1px solid var(--line); border-radius: 10px;
           padding: 22px; margin-bottom: 20px; }
-  .drop { text-align: center; padding: 30px; border: 2px dashed var(--line);
-          border-radius: 10px; }
+  .drop { display: block; text-align: center; padding: 38px 30px; border: 2px dashed var(--line);
+          border-radius: 10px; cursor: pointer; transition: background .12s, border-color .12s; }
+  .drop:hover { border-color: #b9c0ca; }
+  .drop.over { border-color: var(--brand); background: #f0f6ff; }
+  .drop-emoji { font-size: 26px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0;
+          margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
   input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
                      border-radius: 6px; font-size: 14px; }
   table { width: 100%; border-collapse: collapse; }
@@ -114,11 +119,18 @@ _PAGE = """<!doctype html>
 
   {% if not token %}
   <div class="card">
-    <form class="drop" method="post" action="{{ url_for('open_pdf') }}"
+    <form id="uploadForm" method="post" action="{{ url_for('open_pdf') }}"
           enctype="multipart/form-data">
-      <p><strong>Choose a PDF to edit</strong></p>
-      <p><input type="file" name="pdf" accept="application/pdf,.pdf" required></p>
-      <p><button class="btn primary" type="submit">Open</button></p>
+      <label id="drop" class="drop" for="pdfInput">
+        <div class="drop-emoji" aria-hidden="true">⬆️</div>
+        <p><strong>Drag a PDF here</strong> — or click to choose a file</p>
+        <input id="pdfInput" class="visually-hidden" type="file" name="pdf"
+               accept="application/pdf,.pdf" required>
+        <p id="fname" class="muted">No file chosen yet</p>
+      </label>
+      <p style="text-align:center; margin-top:16px;">
+        <button class="btn primary" type="submit">Open</button>
+      </p>
       <p class="muted">Nothing is uploaded to the internet. Files are processed
         on your machine only.</p>
     </form>
@@ -167,6 +179,39 @@ _PAGE = """<!doctype html>
       'onclick="this.closest(\\'tr\\').remove()" title="Delete tag">&times;</button></td>';
     document.getElementById('rows').appendChild(tr);
   }
+
+  (function () {
+    var drop = document.getElementById('drop');
+    if (!drop) return;
+    var input = document.getElementById('pdfInput');
+    var fname = document.getElementById('fname');
+    var form = document.getElementById('uploadForm');
+    function show() {
+      if (input.files && input.files.length) {
+        fname.textContent = input.files[0].name;
+      }
+    }
+    ['dragenter', 'dragover'].forEach(function (e) {
+      drop.addEventListener(e, function (ev) {
+        ev.preventDefault();
+        drop.classList.add('over');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (e) {
+      drop.addEventListener(e, function (ev) {
+        ev.preventDefault();
+        drop.classList.remove('over');
+      });
+    });
+    drop.addEventListener('drop', function (ev) {
+      if (ev.dataTransfer.files && ev.dataTransfer.files.length) {
+        input.files = ev.dataTransfer.files;
+        show();
+        form.submit();
+      }
+    });
+    input.addEventListener('change', function () { show(); form.submit(); });
+  })();
 </script>
 </body>
 </html>

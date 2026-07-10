@@ -49,7 +49,7 @@ def _pdf_with_copyright(tmp_path):
 def test_index_shows_upload_form(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"Choose a PDF" in resp.data
+    assert b"Drag a PDF here" in resp.data
 
 
 def test_gui_shows_and_edits_xmp_field(client, tmp_path):
@@ -97,7 +97,7 @@ def test_open_rejects_non_pdf(client):
     resp = client.post("/open", data=data, content_type="multipart/form-data")
     assert resp.status_code == 200
     # falls back to the upload page with an error, not a crash
-    assert b"Choose a PDF" in resp.data
+    assert b"Drag a PDF here" in resp.data
 
 
 def _open_and_get_token(client, pdf_bytes):
