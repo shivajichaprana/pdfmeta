@@ -126,7 +126,8 @@ _PAGE = """<!doctype html>
   {% else %}
   <div class="card">
     <p class="muted">Editing <strong>{{ filename }}</strong> — these are the
-      document's metadata tags. Change a value, delete a row, or add a new tag,
+      document's metadata tags (Document Info and XMP). Change a value, delete a
+      row, or add a new tag (e.g. <code>copyright</code>, <code>language</code>),
       then click <strong>Modify &amp; download</strong>.</p>
     <form method="post" action="{{ url_for('save_pdf') }}">
       <input type="hidden" name="token" value="{{ token }}">
@@ -192,7 +193,7 @@ def create_app() -> Flask:
         uploaded.save(path)
         try:
             with PDFMetadataEditor(path) as editor:
-                tags = list(editor.read_docinfo().items())
+                tags = list(editor.read().items())
         except PDFMetadataError as exc:
             path.unlink(missing_ok=True)
             return render_template_string(_PAGE, token=None, error=str(exc))
@@ -213,7 +214,7 @@ def create_app() -> Flask:
         fields = {k.strip(): v for k, v in zip(keys, values) if k.strip()}
         try:
             with PDFMetadataEditor(path) as editor:
-                editor.replace_docinfo(fields)
+                editor.replace_editable(fields)
                 editor.save(path)
         except PDFMetadataError as exc:
             return render_template_string(

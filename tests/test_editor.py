@@ -754,6 +754,24 @@ def test_replace_docinfo(tmp_path):
     assert allmeta["XMP"].get("dc:rights") == "© keep"  # XMP-only tag preserved
 
 
+def test_replace_editable_covers_docinfo_and_xmp(tmp_path):
+    path = tmp_path / "e.pdf"
+    _pdf_with_docinfo_only(path)  # Title + Author (docinfo)
+    with PDFMetadataEditor(path) as ed:
+        ed.set_field("copyright", "© old")
+        ed.set_field("language", "en")
+        ed.save()
+    # Now replace everything editable with a new set.
+    with PDFMetadataEditor(path) as ed:
+        ed.replace_editable({"Title": "Only", "copyright": "© new"})
+        ed.save()
+    with PDFMetadataEditor(path) as ed:
+        data = ed.read()
+    assert data == {"Title": "Only", "copyright": "© new"}
+    assert "Author" not in data  # docinfo row dropped
+    assert "language" not in data  # XMP field dropped
+
+
 def test_cli_run_merge(tmp_path, capsys):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "a.pdf", "Keep Me")

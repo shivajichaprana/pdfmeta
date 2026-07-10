@@ -482,11 +482,29 @@ class PDFMetadataEditor:
         Every current docinfo entry is removed (with its XMP mirror for the
         standard fields), then each supplied field is set. XMP-only properties
         that pdfmeta does not surface as docinfo (e.g. a pre-existing
-        ``dc:rights``) are left untouched. Used by the web GUI, where the user
-        edits the visible document-info tags directly.
+        ``dc:rights``) are left untouched.
         """
         for key in list(self._pdf.docinfo.keys()):
             self.remove_field(str(key))
+        for name, value in fields.items():
+            name = name.strip()
+            if name:
+                self.set_field(name, value)
+
+    def replace_editable(self, fields: dict[str, str]) -> None:
+        """Make every *editable* tag exactly ``fields``.
+
+        Like :meth:`replace_docinfo`, but also covers the known XMP fields
+        (``copyright``, ``language``, …) so the values returned by
+        :meth:`read` round-trip exactly. All current document-info entries and
+        known XMP fields are cleared first, then each supplied field is set;
+        raw XMP tags that pdfmeta does not manage are left untouched. Used by
+        the web GUI, where the user edits everything ``read`` reports.
+        """
+        for key in list(self._pdf.docinfo.keys()):
+            self.remove_field(str(key))
+        for friendly in XMP_FIELDS:
+            self.remove_field(friendly)
         for name, value in fields.items():
             name = name.strip()
             if name:

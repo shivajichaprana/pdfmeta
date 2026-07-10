@@ -33,10 +33,53 @@ def _pdf_bytes(title="Original Title", author="Original Author"):
     return buf.getvalue()
 
 
+def _pdf_with_copyright(tmp_path):
+    path = tmp_path / "c.pdf"
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    pdf.docinfo["/Title"] = "Doc"
+    pdf.save(path)
+    pdf.close()
+    with PDFMetadataEditor(path) as ed:
+        ed.set_field("copyright", "© Original")
+        ed.save()
+    return path.read_bytes()
+
+
 def test_index_shows_upload_form(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert b"Choose a PDF" in resp.data
+
+
+def test_gui_shows_and_edits_xmp_field(client, tmp_path):
+    data = _pdf_with_copyright(tmp_path)
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(data), "c.pdf")},
+        content_type="multipart/form-data",
+    )
+    body = resp.data.decode()
+    assert "copyright" in body and "© Original" in body  # XMP tag is shown
+    token = re.search(r'name="token" value="([0-9a-f]{32})"', body).group(1)
+
+    resp = client.post(
+        "/save",
+        data=MultiDict(
+            [
+                ("token", token),
+                ("filename", "c.pdf"),
+                ("key", "Title"),
+                ("value", "Doc"),
+                ("key", "copyright"),
+                ("value", "© Updated"),
+            ]
+        ),
+    )
+    out = tmp_path / "out.pdf"
+    out.write_bytes(resp.data)
+    with PDFMetadataEditor(out) as ed:
+        assert ed.read()["copyright"] == "© Updated"  # XMP edit persisted
 
 
 def test_open_shows_current_tags(client):
