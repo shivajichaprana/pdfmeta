@@ -34,7 +34,7 @@ Issues = "https://github.com/shivajichaprana/pdfmeta/issues"
 
 [project.optional-dependencies]
 gui = ["flask>=2.0"]
-dev = ["pytest>=7.0", "flask>=2.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "hypothesis>=6.0", "flask>=2.0"]
 
 [project.scripts]
 pdfmeta = "pdfmeta.cli:main"

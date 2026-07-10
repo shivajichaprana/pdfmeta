@@ -14,6 +14,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The browser GUI now edits the known XMP fields (`copyright`, `language`,
   `rating`, …) as well as Document Info, so it can change everything `view`
   shows.
+- Property-based tests (Hypothesis) fuzzing the date parser and the metadata
+  round-trip.
 - Developer tooling and quality gates: Ruff (lint + format), strict mypy
   type-checking, and test coverage. CI now runs lint, type-check, and the test
   suite across Python 3.9–3.13 on Linux, macOS, and Windows, with pip caching.
