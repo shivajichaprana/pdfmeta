@@ -20,6 +20,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   type-checking, and test coverage. CI now runs lint, type-check, and the test
   suite across Python 3.9–3.13 on Linux, macOS, and Windows, with pip caching.
 - Automated PyPI release workflow (on `v*` tags, via trusted publishing).
+- CodeQL security scanning and an OpenSSF Scorecard workflow with a badge.
 - Community health files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and PR
   templates, Dependabot, a pre-commit config, and `.editorconfig`.
 
