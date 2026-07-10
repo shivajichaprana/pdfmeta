@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Double-click launchers (`Open pdfmeta editor.command` for macOS and a `.bat`
+  for Windows) that set up and open the browser editor with no terminal use.
 - `scrub` command — remove all metadata (Document Info + XMP) from a PDF, in
   place or to a clean copy (`-o`). Handy before sharing a file.
 - `template` command — dump a PDF's current metadata as editable JSON (to a

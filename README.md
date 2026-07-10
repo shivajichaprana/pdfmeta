@@ -19,12 +19,27 @@ pdfmeta does everything **on your own machine**, works on **many PDFs at once**
 from a JSON template, and reads back **every tag actually in the file** so you
 can verify the result. It's tiny, typed, and thoroughly tested.
 
-A few small commands cover the whole workflow:
+## Quick start — no terminal needed
+
+Double-click **`Open pdfmeta editor.command`** (macOS) or
+**`Open pdfmeta editor (Windows).bat`** (Windows). It sets everything up the
+first time and opens the editor in your browser. Upload a PDF, change its tags,
+and download the result — everything happens on your own computer.
+
+> First time on macOS: if you see a security warning, right-click the file and
+> choose **Open**, then **Open** again. You only need to do this once.
+
+![The pdfmeta browser editor](docs/gui-screenshot.png)
+
+## For developers: the command line
+
+Under the hood, the editor is powered by a small, tested CLI you can also use
+directly:
 
 - `pdfmeta view <pdf>` — show every metadata tag actually in a PDF.
 - `pdfmeta run` — apply the JSON metadata from a folder to every PDF in a folder.
 - `pdfmeta scrub <pdf>` — remove all metadata (before sharing a file).
-- `pdfmeta gui` — a local, point-and-click browser editor.
+- `pdfmeta gui` — launch the browser editor.
 
 ## Installation
 
@@ -104,8 +119,6 @@ Your browser opens a local page where you can upload a PDF, see its current
 metadata tags in an editable table, change values, delete tags, add new ones,
 then click **Modify & download** to get the edited PDF. It runs entirely on your
 machine — the file never leaves your computer, unlike online metadata editors.
-
-![The pdfmeta browser editor](docs/gui-screenshot.png)
 
 ## The JSON file
 
