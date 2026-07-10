@@ -244,6 +244,15 @@ def test_batch_open_and_apply(client, tmp_path):
             assert ed.read_docinfo()["Title"] == "New"
 
 
+def test_batch_page_has_progress(client):
+    data = MultiDict()
+    data.add("pdfs", (io.BytesIO(_pdf_bytes()), "a.pdf"))
+    resp = client.post("/batch-open", data=data, content_type="multipart/form-data")
+    body = resp.data.decode()
+    assert 'id="progress"' in body
+    assert 'data-batch="1"' in body
+
+
 def test_batch_open_no_files(client):
     resp = client.post("/batch-open", data={}, content_type="multipart/form-data")
     assert resp.status_code == 200

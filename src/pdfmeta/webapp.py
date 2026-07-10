@@ -155,6 +155,14 @@ _PAGE = """<!doctype html>
   header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
   #toast { display: none; position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
            background: #1a1f27; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; }
+  #progress { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+              align-items: center; justify-content: center; flex-direction: column; z-index: 20; }
+  #progress p { color: #fff; margin-top: 12px; font-size: 14px; }
+  #progress .bar { width: 240px; height: 6px; background: rgba(255,255,255,.25);
+                   border-radius: 3px; overflow: hidden; }
+  #progress .bar span { display: block; width: 40%; height: 100%; background: #fff;
+                        border-radius: 3px; animation: slide 1.1s infinite ease-in-out; }
+  @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
   main { max-width: 820px; margin: 28px auto; padding: 0 20px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
           padding: 22px; margin-bottom: 20px; }
@@ -211,7 +219,7 @@ _PAGE = """<!doctype html>
       <strong>{{ batch.files|length }}</strong> PDF(s) you uploaded. The same
       values are written to <em>all</em> of them, and each file's other metadata
       is replaced to match. Leave it empty to just strip metadata from all.</p>
-    <form method="post" action="{{ url_for('batch_apply') }}" data-download="1">
+    <form method="post" action="{{ url_for('batch_apply') }}" data-download="1" data-batch="1">
       <input type="hidden" name="token" value="{{ batch.token }}">
       <table>
         <thead><tr><th>Tag</th><th>Value</th><th></th></tr></thead>
@@ -314,6 +322,7 @@ _PAGE = """<!doctype html>
   {% endif %}
 </main>
 <div id="toast">Preparing your download…</div>
+<div id="progress"><div class="bar"><span></span></div><p>Applying metadata to your PDFs…</p></div>
 <script>
   function addRow() {
     var tr = document.createElement('tr');
@@ -374,7 +383,14 @@ _PAGE = """<!doctype html>
         return;
       }
     }
-    if (e.target.dataset && e.target.dataset.download) {
+    if (e.target.dataset && e.target.dataset.batch) {
+      var p = document.getElementById('progress');
+      if (p) {
+        p.style.display = 'flex';
+        p.onclick = function () { p.style.display = 'none'; };
+        setTimeout(function () { p.style.display = 'none'; }, 9000);
+      }
+    } else if (e.target.dataset && e.target.dataset.download) {
       var t = document.getElementById('toast');
       if (t) { t.style.display = 'block'; setTimeout(function () { t.style.display = 'none'; }, 4000); }
     }
