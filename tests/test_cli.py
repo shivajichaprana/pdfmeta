@@ -4,6 +4,7 @@ import json
 import sys
 import types
 
+import pikepdf
 import pytest
 
 from pdfmeta.cli import _run_gui, main
@@ -56,6 +57,39 @@ def test_cli_run_no_pdfs(tmp_path, capsys):
     )
     assert rc == 0
     assert "No PDF files found" in capsys.readouterr().out
+
+
+def _pdf_with_metadata(path):
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(200, 200))
+    pdf.docinfo["/Title"] = "Secret Title"
+    pdf.docinfo["/Author"] = "Secret Author"
+    pdf.save(path)
+    pdf.close()
+
+
+def test_cli_scrub_in_place(tmp_path, capsys):
+    from pdfmeta.editor import PDFMetadataEditor
+
+    path = tmp_path / "doc.pdf"
+    _pdf_with_metadata(path)
+    assert main(["scrub", str(path)]) == 0
+    assert "Removed all metadata" in capsys.readouterr().out
+    with PDFMetadataEditor(path) as ed:
+        assert ed.read_all() == {"Document Info": {}, "XMP": {}}
+
+
+def test_cli_scrub_output_keeps_original(tmp_path):
+    from pdfmeta.editor import PDFMetadataEditor
+
+    path = tmp_path / "doc.pdf"
+    out = tmp_path / "clean.pdf"
+    _pdf_with_metadata(path)
+    assert main(["scrub", str(path), "-o", str(out)]) == 0
+    with PDFMetadataEditor(out) as ed:
+        assert ed.read_docinfo() == {}
+    with PDFMetadataEditor(path) as ed:
+        assert ed.read_docinfo()["Title"] == "Secret Title"  # original untouched
 
 
 def test_cli_version(capsys):

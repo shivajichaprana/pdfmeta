@@ -17,12 +17,12 @@ pdfmeta does everything **on your own machine**, works on **many PDFs at once**
 from a JSON template, and reads back **every tag actually in the file** so you
 can verify the result. It's tiny, typed, and thoroughly tested.
 
-Two commands cover the whole workflow:
+A few small commands cover the whole workflow:
 
 - `pdfmeta view <pdf>` — show every metadata tag actually in a PDF.
 - `pdfmeta run` — apply the JSON metadata from a folder to every PDF in a folder.
-
-Prefer point-and-click? There's also a local browser editor: `pdfmeta gui`.
+- `pdfmeta scrub <pdf>` — remove all metadata (before sharing a file).
+- `pdfmeta gui` — a local, point-and-click browser editor.
 
 ## Installation
 
@@ -75,6 +75,19 @@ cp examples/metadata.json input_json/
 pdfmeta run
 pdfmeta view output/demo.pdf
 ```
+
+## Removing all metadata (privacy)
+
+Before emailing or publishing a PDF, strip every tag it carries — author name,
+software fingerprints, timestamps, and any hidden XMP data:
+
+```bash
+pdfmeta scrub report.pdf                 # cleans it in place
+pdfmeta scrub report.pdf -o report_clean.pdf   # keeps the original, writes a clean copy
+```
+
+To scrub a whole folder at once, put an empty `{}` in a JSON file in
+`input_json/` and run `pdfmeta run` — every PDF comes out with no metadata.
 
 ## The browser editor (optional)
 

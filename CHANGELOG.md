@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `scrub` command — remove all metadata (Document Info + XMP) from a PDF, in
+  place or to a clean copy (`-o`). Handy before sharing a file.
+- The browser GUI now edits the known XMP fields (`copyright`, `language`,
+  `rating`, …) as well as Document Info, so it can change everything `view`
+  shows.
 - Developer tooling and quality gates: Ruff (lint + format), strict mypy
   type-checking, and test coverage. CI now runs lint, type-check, and the test
   suite across Python 3.9–3.13 on Linux, macOS, and Windows, with pip caching.

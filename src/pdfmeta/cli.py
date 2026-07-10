@@ -3,6 +3,7 @@
     view   Show all metadata actually in a PDF (Document Info + XMP).
     run    Apply the JSON metadata from a folder to every PDF in a folder.
     gui    Launch the local browser-based metadata editor.
+    scrub  Remove all metadata from a PDF (privacy).
 
 Typical workflow:
 
@@ -129,6 +130,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_gui.add_argument(
         "--no-browser", action="store_true", help="Don't open a browser window automatically."
     )
+
+    # scrub — remove all metadata (privacy)
+    p_scrub = sub.add_parser(
+        "scrub",
+        help="Remove ALL metadata from a PDF (Document Info + XMP).",
+        description="Strip every metadata tag from a PDF — useful before sharing "
+        "a file. Edits in place unless you pass -o to write a clean copy.",
+    )
+    p_scrub.add_argument("pdf", help="Path to the PDF file.")
+    p_scrub.add_argument(
+        "-o", "--output", help="Write the cleaned PDF here instead of editing in place."
+    )
     return parser
 
 
@@ -160,6 +173,13 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  {r['pdf']}  ({r['status']})")
             print(f"\nDone: {ok} of {len(results)} PDF(s) written to {args.out_dir}/.")
             return 0 if ok == len(results) else 1
+
+        if args.command == "scrub":
+            with PDFMetadataEditor(args.pdf) as editor:
+                editor.clear()
+                dest = editor.save(args.output)
+            print(f"Removed all metadata -> {dest}")
+            return 0
 
         if args.command == "gui":
             return _run_gui(args.port, open_browser=not args.no_browser)
