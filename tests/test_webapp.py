@@ -46,6 +46,32 @@ def _pdf_with_copyright(tmp_path):
     return path.read_bytes()
 
 
+def _pdf_with_extra_xmp(tmp_path):
+    path = tmp_path / "x.pdf"
+    pdf = pikepdf.new()
+    pdf.add_blank_page(page_size=(120, 120))
+    pdf.docinfo["/Title"] = "Doc"
+    pdf.save(path)
+    pdf.close()
+    with pikepdf.open(path, allow_overwriting_input=True) as p:
+        with p.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as x:
+            x["photoshop:Headline"] = "Big News"
+        p.save(path)
+    return path.read_bytes()
+
+
+def test_gui_shows_extra_xmp_readonly(client, tmp_path):
+    data = _pdf_with_extra_xmp(tmp_path)
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(data), "x.pdf")},
+        content_type="multipart/form-data",
+    )
+    body = resp.data.decode()
+    assert "photoshop:Headline" in body  # unmanaged tag surfaced
+    assert "read-only" in body
+
+
 def test_index_shows_upload_form(client):
     resp = client.get("/")
     assert resp.status_code == 200

@@ -388,6 +388,16 @@ class PDFMetadataEditor:
         """
         return {"Document Info": self.read_docinfo(), "XMP": self.read_xmp()}
 
+    def read_extra_xmp(self) -> dict[str, str]:
+        """XMP properties present in the file that pdfmeta does not manage as an
+        editable field — e.g. tags written by other tools (``photoshop:*``,
+        ``xmpMM:History``). Useful for a read-only "nothing hidden" view."""
+        managed = set(_XMP_KEY_TO_FRIENDLY)  # editable friendly XMP fields
+        for prefix, local in _XMP_MAP.values():  # standard docinfo mirrors
+            managed.add(f"{prefix}:{local}")
+        managed.update(_XMP_DATE_MAP.values())  # xmp:CreateDate / xmp:ModifyDate
+        return {k: v for k, v in self.read_xmp().items() if k not in managed}
+
     def xmp_packet(self) -> str | None:
         """Return the raw XMP XML packet exactly as stored, or ``None``."""
         if "/Metadata" not in self._pdf.Root:

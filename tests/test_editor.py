@@ -723,6 +723,20 @@ def test_read_all_surfaces_unknown_xmp_tags(blank_pdf):
     assert xmp["photoshop:Headline"] == "Big News"
 
 
+def test_read_extra_xmp(blank_pdf):
+    with pikepdf.open(blank_pdf, allow_overwriting_input=True) as pdf:
+        with pdf.open_metadata(set_pikepdf_as_editor=False, update_docinfo=False) as x:
+            x["dc:title"] = "T"  # standard mirror -> managed
+            x["dc:rights"] = "© managed"  # copyright field -> managed
+            x["photoshop:Headline"] = "Big News"  # unmanaged
+        pdf.save(blank_pdf)
+    with PDFMetadataEditor(blank_pdf) as ed:
+        extra = ed.read_extra_xmp()
+    assert extra.get("photoshop:Headline") == "Big News"
+    assert "dc:title" not in extra
+    assert "dc:rights" not in extra
+
+
 def test_read_xmp_empty_when_no_packet(blank_pdf):
     with PDFMetadataEditor(blank_pdf) as ed:
         assert ed.read_xmp() == {}

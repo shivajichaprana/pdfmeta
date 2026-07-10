@@ -193,6 +193,19 @@ _PAGE = """<!doctype html>
   <p class="muted">The standard tags are also written to the PDF's XMP stream so
     every viewer stays consistent. Your original file is untouched — this
     downloads a new edited copy.</p>
+  {% if extra %}
+  <div class="card">
+    <p class="muted" style="margin-top:0;">Other XMP tags found in this file
+      (written by another tool — shown read-only):</p>
+    <table>
+      <tbody>
+        {% for k, v in extra %}
+        <tr><td class="k"><code>{{ k }}</code></td><td>{{ v }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
   {% endif %}
 </main>
 <script>
@@ -265,11 +278,12 @@ def create_app() -> Flask:
         try:
             with PDFMetadataEditor(path) as editor:
                 tags = list(editor.read().items())
+                extra = list(editor.read_extra_xmp().items())
         except PDFMetadataError as exc:
             path.unlink(missing_ok=True)
             return render_template_string(_PAGE, token=None, error=str(exc))
         return render_template_string(
-            _PAGE, token=token, filename=Path(uploaded.filename).name, tags=tags
+            _PAGE, token=token, filename=Path(uploaded.filename).name, tags=tags, extra=extra
         )
 
     @app.post("/save")
