@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local scratch PDFs
+*.tmp.pdf
+sample_out.pdf
+
+# Batch working folders: keep the folders and their README, ignore user data
+input_pdf/*
+input_json/*
+output/*
+!input_pdf/README.md
+!input_json/README.md
+!output/README.md

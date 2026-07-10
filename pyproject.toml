@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdfmeta"
+version = "0.1.0"
+description = "A simple CLI and library to view, edit, and add PDF metadata (including custom fields)."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Shivaji Chaprana" }]
+keywords = ["pdf", "metadata", "cli", "pikepdf", "xmp"]
+dependencies = ["pikepdf>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/your-username/pdfmeta"
+Issues = "https://github.com/your-username/pdfmeta/issues"
+
+[project.optional-dependencies]
+gui = ["flask>=2.0"]
+dev = ["pytest>=7.0", "flask>=2.0"]
+
+[project.scripts]
+pdfmeta = "pdfmeta.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["pdfmeta"]
+
+[tool.setuptools.package-data]
+pdfmeta = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
