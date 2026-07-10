@@ -11,10 +11,13 @@ Flask is an optional dependency; install it with ``pip install "pdfmeta[gui]"``.
 from __future__ import annotations
 
 import contextlib
+import io
 import re
 import secrets
+import shutil
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 from flask import (
@@ -43,16 +46,26 @@ def _token_path(token: str) -> Path:
     return _UPLOAD_DIR / f"{token}.pdf"
 
 
+def _batch_dir(token: str) -> Path:
+    """Return the temp folder for a batch, refusing anything that isn't a token."""
+    if not _TOKEN_RE.match(token or ""):
+        abort(400, "Invalid batch token.")
+    return _UPLOAD_DIR / f"batch_{token}"
+
+
 def _sweep_stale() -> None:
-    """Delete abandoned upload temp files so they don't accumulate forever."""
+    """Delete abandoned uploads (single files and batch folders) so they don't
+    accumulate forever."""
     try:
         cutoff = time.time() - _STALE_SECONDS
         for f in _UPLOAD_DIR.glob("*.pdf"):
-            try:
+            with contextlib.suppress(OSError):
                 if f.stat().st_mtime < cutoff:
                     f.unlink(missing_ok=True)
-            except OSError:
-                pass
+        for d in _UPLOAD_DIR.glob("batch_*"):
+            with contextlib.suppress(OSError):
+                if d.is_dir() and d.stat().st_mtime < cutoff:
+                    shutil.rmtree(d, ignore_errors=True)
     except OSError:
         pass
 
@@ -138,7 +151,36 @@ _PAGE = """<!doctype html>
 <main>
   {% if error %}<div class="flash">{{ error }}</div>{% endif %}
 
-  {% if not token %}
+  {% if batch %}
+  <div class="card">
+    <p class="muted">Set the metadata to apply to the
+      <strong>{{ batch.files|length }}</strong> PDF(s) you uploaded. The same
+      values are written to <em>all</em> of them, and each file's other metadata
+      is replaced to match. Leave it empty to just strip metadata from all.</p>
+    <form method="post" action="{{ url_for('batch_apply') }}">
+      <input type="hidden" name="token" value="{{ batch.token }}">
+      <table>
+        <thead><tr><th>Tag</th><th>Value</th><th></th></tr></thead>
+        <tbody id="rows">
+          {% for placeholder in ['e.g. Title', 'e.g. Author', 'e.g. Subject'] %}
+          <tr>
+            <td class="k"><input type="text" name="key" placeholder="{{ placeholder }}"></td>
+            <td><input type="text" name="value" placeholder="value"></td>
+            <td class="x"><button type="button" class="btn del"
+                onclick="this.closest('tr').remove()" title="Delete tag">&times;</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="row-actions">
+        <button type="button" class="btn ghost" onclick="addRow()">+ Add tag</button>
+        <button type="submit" class="btn primary">Apply to all &amp; download zip</button>
+        <a class="muted" href="{{ url_for('index') }}">Start over</a>
+      </div>
+    </form>
+    <p class="muted">Files: {{ batch.files|join(', ') }}</p>
+  </div>
+  {% elif not token %}
   <div class="card">
     <form id="uploadForm" method="post" action="{{ url_for('open_pdf') }}"
           enctype="multipart/form-data">
@@ -154,6 +196,14 @@ _PAGE = """<!doctype html>
       </p>
       <p class="muted">Nothing is uploaded to the internet. Files are processed
         on your machine only.</p>
+    </form>
+  </div>
+  <div class="card">
+    <p><strong>Or tag several PDFs at once</strong></p>
+    <form method="post" action="{{ url_for('batch_open') }}" enctype="multipart/form-data">
+      <p><input type="file" name="pdfs" accept="application/pdf,.pdf" multiple required></p>
+      <p><button class="btn primary" type="submit">Upload &amp; set metadata</button></p>
+      <p class="muted">Apply the same metadata to many PDFs and download them as a zip.</p>
     </form>
   </div>
   {% else %}
@@ -324,5 +374,74 @@ def create_app() -> Flask:
                 _PAGE, token=None, error=f"Could not clean the file: {exc}"
             )
         return _serve_and_cleanup(path, request.form.get("filename", ""))
+
+    @app.post("/batch-open")
+    def batch_open() -> str:
+        uploads = [f for f in request.files.getlist("pdfs") if f and f.filename]
+        if not uploads:
+            return render_template_string(
+                _PAGE, token=None, error="Please choose one or more PDF files."
+            )
+        _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        _sweep_stale()
+        token = secrets.token_hex(16)
+        bdir = _batch_dir(token)
+        bdir.mkdir(parents=True, exist_ok=True)
+        names: list[str] = []
+        for f in uploads:
+            base = Path(f.filename or "").name
+            dest = bdir / base
+            i = 1
+            while dest.exists():
+                dest = bdir / f"{Path(base).stem}_{i}{Path(base).suffix}"
+                i += 1
+            f.save(dest)
+            names.append(dest.name)
+        return render_template_string(_PAGE, token=None, batch={"token": token, "files": names})
+
+    @app.post("/batch-apply")
+    def batch_apply() -> Response | str:
+        token = request.form.get("token", "")
+        bdir = _batch_dir(token)
+        if not bdir.is_dir():
+            return render_template_string(
+                _PAGE,
+                token=None,
+                error="That batch session expired. Please upload the files again.",
+            )
+        keys = request.form.getlist("key")
+        values = request.form.getlist("value")
+        fields = {k.strip(): v for k, v in zip(keys, values) if k.strip()}
+
+        buffer = io.BytesIO()
+        count = 0
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for pdf in sorted(bdir.glob("*.pdf")):
+                try:
+                    with PDFMetadataEditor(pdf) as editor:
+                        editor.replace_editable(fields)
+                        editor.save(pdf)
+                    zf.write(pdf, arcname=pdf.name)
+                    count += 1
+                except PDFMetadataError:
+                    continue  # skip a bad file, keep the rest
+
+        @after_this_request
+        def _cleanup(response: Response) -> Response:
+            with contextlib.suppress(OSError):
+                shutil.rmtree(bdir, ignore_errors=True)
+            return response
+
+        if count == 0:
+            return render_template_string(
+                _PAGE, token=None, error="None of the uploaded files could be processed."
+            )
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name="pdfmeta_edited.zip",
+            mimetype="application/zip",
+        )
 
     return app

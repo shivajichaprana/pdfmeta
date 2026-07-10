@@ -2,6 +2,7 @@
 
 import io
 import re
+import zipfile
 
 import pikepdf
 import pytest
@@ -175,6 +176,40 @@ def test_scrub_removes_everything(client, tmp_path):
 
 def test_scrub_bad_token(client):
     resp = client.post("/scrub", data={"token": "nope"})
+    assert resp.status_code == 400
+
+
+def test_batch_open_and_apply(client, tmp_path):
+    data = MultiDict()
+    for name in ("a.pdf", "b.pdf"):
+        data.add("pdfs", (io.BytesIO(_pdf_bytes(title="old")), name))
+    resp = client.post("/batch-open", data=data, content_type="multipart/form-data")
+    body = resp.data.decode()
+    assert "Apply to all" in body
+    token = re.search(r'name="token" value="([0-9a-f]{32})"', body).group(1)
+
+    resp = client.post(
+        "/batch-apply", data=MultiDict([("token", token), ("key", "Title"), ("value", "New")])
+    )
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/zip"
+    zf = zipfile.ZipFile(io.BytesIO(resp.data))
+    assert set(zf.namelist()) == {"a.pdf", "b.pdf"}
+    for name in zf.namelist():
+        out = tmp_path / name
+        out.write_bytes(zf.read(name))
+        with PDFMetadataEditor(out) as ed:
+            assert ed.read_docinfo()["Title"] == "New"
+
+
+def test_batch_open_no_files(client):
+    resp = client.post("/batch-open", data={}, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    assert b"Please choose one or more PDF files" in resp.data
+
+
+def test_batch_apply_bad_token(client):
+    resp = client.post("/batch-apply", data={"token": "nope"})
     assert resp.status_code == 400
 
 

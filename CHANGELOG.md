@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The browser GUI now edits the known XMP fields (`copyright`, `language`,
   `rating`, …) as well as Document Info, so it can change everything `view`
   shows.
+- The browser GUI gained: drag-and-drop upload, a one-click "Remove all
+  metadata" button, a read-only view of other tools' XMP tags (nothing hidden),
+  and a batch mode to tag many PDFs at once and download them as a zip.
 - Property-based tests (Hypothesis) fuzzing the date parser and the metadata
   round-trip.
 - Developer tooling and quality gates: Ruff (lint + format), strict mypy
