@@ -398,6 +398,11 @@ class PDFMetadataEditor:
         managed.update(_XMP_DATE_MAP.values())  # xmp:CreateDate / xmp:ModifyDate
         return {k: v for k, v in self.read_xmp().items() if k not in managed}
 
+    @property
+    def page_count(self) -> int:
+        """Number of pages in the PDF."""
+        return len(self._pdf.pages)
+
     def xmp_packet(self) -> str | None:
         """Return the raw XMP XML packet exactly as stored, or ``None``."""
         if "/Metadata" not in self._pdf.Root:

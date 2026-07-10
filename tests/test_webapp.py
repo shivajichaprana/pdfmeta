@@ -128,6 +128,29 @@ def test_gui_shows_and_edits_xmp_field(client, tmp_path):
         assert ed.read()["copyright"] == "© Updated"  # XMP edit persisted
 
 
+def test_editor_shows_page_count_and_size(client):
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(_pdf_bytes()), "f.pdf")},
+        content_type="multipart/form-data",
+    )
+    body = resp.data.decode()
+    assert "1 page" in body  # single-page test PDF
+    assert "KB" in body or "B)" in body  # file size shown
+
+
+def test_too_large_upload_friendly_error(client):
+    client.application.config["MAX_CONTENT_LENGTH"] = 100  # tiny cap for the test
+    big = b"%PDF-1.4\n" + b"0" * 5000
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(big), "big.pdf")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 413
+    assert b"too large" in resp.data
+
+
 def test_open_shows_current_tags(client):
     data = {"pdf": (io.BytesIO(_pdf_bytes()), "report.pdf")}
     resp = client.post("/open", data=data, content_type="multipart/form-data")

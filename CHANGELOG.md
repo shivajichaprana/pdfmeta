@@ -23,6 +23,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that prevents double-submits.
 - GUI: a Quit button that stops the local server (no need to find the
   terminal), a "preparing your download" confirmation, and a favicon.
+- GUI: shows each PDF's page count and size, a friendly "file too large"
+  message, and warns before submitting a row that has a value but no tag name.
 - GUI security: the local server only accepts requests addressed to
   localhost (defeats DNS-rebinding) and rejects cross-origin POSTs (CSRF), so a
   website you visit can't reach the editor while it runs.

@@ -82,6 +82,16 @@ def _safe_download_name(raw: str) -> str:
     return name
 
 
+def _human_size(num_bytes: int) -> str:
+    """Format a byte count as a short human-readable size."""
+    size = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
+
+
 def _shutdown_soon(delay: float = 0.4) -> None:
     """Stop the local server shortly after the current response is sent."""
     threading.Timer(delay, lambda: os._exit(0)).start()
@@ -252,7 +262,8 @@ _PAGE = """<!doctype html>
   </div>
   {% else %}
   <div class="card">
-    <p class="muted">Editing <strong>{{ filename }}</strong> — these are the
+    <p class="muted">Editing <strong>{{ filename }}</strong>{% if info %}
+      <span>({{ info }})</span>{% endif %} — these are the
       document's metadata tags (Document Info and XMP). Change a value, delete a
       row, or add a new tag (e.g. <code>copyright</code>, <code>language</code>),
       then click <strong>Modify &amp; download</strong>.</p>
@@ -349,6 +360,20 @@ _PAGE = """<!doctype html>
 
   // Prevent double-submits and give feedback while a download is prepared.
   document.addEventListener('submit', function (e) {
+    var rows = e.target.querySelector('#rows');
+    if (rows) {
+      var bad = false;
+      rows.querySelectorAll('tr').forEach(function (tr) {
+        var k = tr.querySelector('input[name=key]');
+        var v = tr.querySelector('input[name=value]');
+        if (k && v && !k.value.trim() && v.value.trim()) bad = true;
+      });
+      if (bad) {
+        e.preventDefault();
+        alert('Some rows have a value but no tag name. Add a name, or clear the value.');
+        return;
+      }
+    }
     if (e.target.dataset && e.target.dataset.download) {
       var t = document.getElementById('toast');
       if (t) { t.style.display = 'block'; setTimeout(function () { t.style.display = 'none'; }, 4000); }
@@ -385,6 +410,16 @@ def create_app() -> Flask:
             if origin is not None and urlsplit(origin).hostname not in _LOCAL_HOSTS:
                 abort(403)
 
+    @app.errorhandler(413)
+    def too_large(_exc: object) -> tuple[str, int]:
+        limit = _MAX_UPLOAD_BYTES // (1024 * 1024)
+        return (
+            render_template_string(
+                _PAGE, token=None, error=f"That file is too large. The limit is {limit} MB."
+            ),
+            413,
+        )
+
     @app.get("/")
     def index() -> str:
         return render_template_string(_PAGE, token=None)
@@ -403,11 +438,18 @@ def create_app() -> Flask:
             with PDFMetadataEditor(path) as editor:
                 tags = list(editor.read().items())
                 extra = list(editor.read_extra_xmp().items())
+                pages = editor.page_count
         except PDFMetadataError as exc:
             path.unlink(missing_ok=True)
             return render_template_string(_PAGE, token=None, error=str(exc))
+        info = f"{pages} page{'s' if pages != 1 else ''} · {_human_size(path.stat().st_size)}"
         return render_template_string(
-            _PAGE, token=token, filename=Path(uploaded.filename).name, tags=tags, extra=extra
+            _PAGE,
+            token=token,
+            filename=Path(uploaded.filename).name,
+            tags=tags,
+            extra=extra,
+            info=info,
         )
 
     @app.post("/save")
