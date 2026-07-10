@@ -6,7 +6,7 @@ welcome — bug reports, feature ideas, documentation, and pull requests.
 ## Development setup
 
 ```bash
-git clone https://github.com/your-username/pdfmeta.git
+git clone https://github.com/shivajichaprana/pdfmeta.git
 cd pdfmeta
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate

@@ -65,7 +65,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `export`, and `import` subcommands.
 - `python -m pdfmeta` entry point.
 - PEP 561 `py.typed` marker so downstream users get the type hints.
-- pytest test suite and GitHub Actions CI across Python 3.8–3.12.
+- pytest test suite and GitHub Actions CI across Python 3.9–3.13.
 
-[Unreleased]: https://github.com/your-username/pdfmeta/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/your-username/pdfmeta/releases/tag/v0.1.0
+[Unreleased]: https://github.com/shivajichaprana/pdfmeta/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/shivajichaprana/pdfmeta/releases/tag/v0.1.0

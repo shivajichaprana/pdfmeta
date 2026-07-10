@@ -1,7 +1,7 @@
 # pdfmeta
 
-[![CI](https://github.com/your-username/pdfmeta/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/pdfmeta/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![CI](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml/badge.svg)](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A small, bulletproof command-line tool to **view and change PDF metadata** using
@@ -19,12 +19,12 @@ Prefer point-and-click? There's also a local browser editor: `pdfmeta gui`.
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/pdfmeta.git
+git clone https://github.com/shivajichaprana/pdfmeta.git
 cd pdfmeta
 pip install -e .            # installs pdfmeta and its one dependency (pikepdf)
 ```
 
-Requires Python 3.8+. If the `pdfmeta` command isn't on your PATH, use
+Requires Python 3.9+. If the `pdfmeta` command isn't on your PATH, use
 `python -m pdfmeta` instead — the two are equivalent.
 
 ## The workflow
