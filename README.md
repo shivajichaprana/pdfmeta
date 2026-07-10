@@ -1,6 +1,7 @@
 # pdfmeta
 
 [![CI](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml/badge.svg)](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/shivajichaprana/pdfmeta/branch/main/graph/badge.svg)](https://codecov.io/gh/shivajichaprana/pdfmeta)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
