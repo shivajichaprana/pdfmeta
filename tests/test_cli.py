@@ -92,6 +92,24 @@ def test_cli_scrub_output_keeps_original(tmp_path):
         assert ed.read_docinfo()["Title"] == "Secret Title"  # original untouched
 
 
+def test_cli_template_to_stdout(tmp_path, capsys):
+    path = tmp_path / "doc.pdf"
+    _pdf_with_metadata(path)
+    assert main(["template", str(path)]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["Title"] == "Secret Title"
+    assert data["Author"] == "Secret Author"
+
+
+def test_cli_template_to_file(tmp_path):
+    path = tmp_path / "doc.pdf"
+    out = tmp_path / "meta.json"
+    _pdf_with_metadata(path)
+    assert main(["template", str(path), "-o", str(out)]) == 0
+    data = json.loads(out.read_text())
+    assert data["Title"] == "Secret Title"
+
+
 def test_cli_version(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])

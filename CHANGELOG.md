@@ -9,6 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - `scrub` command — remove all metadata (Document Info + XMP) from a PDF, in
   place or to a clean copy (`-o`). Handy before sharing a file.
+- `template` command — dump a PDF's current metadata as editable JSON (to a
+  file or the screen), so you can tweak it and feed it to `run`.
 - The browser GUI now edits the known XMP fields (`copyright`, `language`,
   `rating`, …) as well as Document Info, so it can change everything `view`
   shows.

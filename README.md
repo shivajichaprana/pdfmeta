@@ -109,6 +109,12 @@ A flat object of `"Field": "value"` pairs. Whatever is in the JSON becomes the
 PDF's metadata; by default any other existing metadata is removed so the file
 matches the JSON exactly.
 
+Don't want to write it by hand? Generate one from an existing PDF and edit it:
+
+```bash
+pdfmeta template report.pdf -o input_json/metadata.json
+```
+
 ```json
 {
   "Title": "Quarterly Business Review",

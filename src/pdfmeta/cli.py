@@ -4,6 +4,7 @@
     run    Apply the JSON metadata from a folder to every PDF in a folder.
     gui    Launch the local browser-based metadata editor.
     scrub  Remove all metadata from a PDF (privacy).
+    template  Dump a PDF's metadata as editable JSON.
 
 Typical workflow:
 
@@ -142,6 +143,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_scrub.add_argument(
         "-o", "--output", help="Write the cleaned PDF here instead of editing in place."
     )
+
+    # template — dump a PDF's metadata as an editable JSON
+    p_tmpl = sub.add_parser(
+        "template",
+        help="Write a PDF's current metadata as JSON you can edit and reuse.",
+        description="Read a PDF's metadata and write it as a JSON file (or print "
+        "it). Edit the result and feed it to `run` to apply it to other PDFs.",
+    )
+    p_tmpl.add_argument("pdf", help="Path to the PDF file.")
+    p_tmpl.add_argument(
+        "-o", "--output", help="Write the JSON here (default: print to the screen)."
+    )
     return parser
 
 
@@ -179,6 +192,15 @@ def main(argv: list[str] | None = None) -> int:
                 editor.clear()
                 dest = editor.save(args.output)
             print(f"Removed all metadata -> {dest}")
+            return 0
+
+        if args.command == "template":
+            with PDFMetadataEditor(args.pdf) as editor:
+                if args.output:
+                    editor.export_json(args.output)
+                    print(f"Wrote metadata template -> {args.output}")
+                else:
+                    print(json.dumps(editor.read(), indent=2, ensure_ascii=False))
             return 0
 
         if args.command == "gui":
