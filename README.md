@@ -104,6 +104,8 @@ metadata tags in an editable table, change values, delete tags, add new ones,
 then click **Modify & download** to get the edited PDF. It runs entirely on your
 machine — the file never leaves your computer, unlike online metadata editors.
 
+![The pdfmeta browser editor](docs/gui-screenshot.png)
+
 ## The JSON file
 
 A flat object of `"Field": "value"` pairs. Whatever is in the JSON becomes the
