@@ -24,8 +24,8 @@ pytest
 
 Tests import the package from `src/` via the `pythonpath` setting in
 `pyproject.toml`, so they run with or without an editable install. All tests
-must pass before a pull request can be merged. CI runs the suite on Python 3.8
-through 3.12.
+must pass before a pull request can be merged. CI runs the suite on Python 3.9
+through 3.13.
 
 ## Making changes
 

@@ -90,3 +90,41 @@ def test_save_with_bad_token(client):
                                       "key": "Title", "value": "X"})
     # invalid token -> 400 from _token_path guard
     assert resp.status_code == 400
+
+
+def test_save_cleans_up_temp_file(client, monkeypatch, tmp_path):
+    import pdfmeta.webapp as wa
+    monkeypatch.setattr(wa, "_UPLOAD_DIR", tmp_path / "up")
+    token = _open_and_get_token(client, _pdf_bytes())
+    assert list((tmp_path / "up").glob("*.pdf"))          # temp exists after open
+    resp = client.post("/save", data=MultiDict([
+        ("token", token), ("filename", "f.pdf"),
+        ("key", "Title"), ("value", "X")]))
+    assert resp.status_code == 200
+    # after the download is served, the temp file is gone
+    assert list((tmp_path / "up").glob("*.pdf")) == []
+
+
+def test_save_handles_nasty_filename(client):
+    # A filename with a newline must not crash the save (no 500).
+    token = _open_and_get_token(client, _pdf_bytes())
+    resp = client.post("/save", data=MultiDict([
+        ("token", token), ("filename", "bad\r\nname.pdf"),
+        ("key", "Title"), ("value", "X")]))
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/pdf"
+
+
+def test_open_sweeps_stale_uploads(client, monkeypatch, tmp_path):
+    import os, time
+    import pdfmeta.webapp as wa
+    updir = tmp_path / "up"
+    updir.mkdir()
+    monkeypatch.setattr(wa, "_UPLOAD_DIR", updir)
+    monkeypatch.setattr(wa, "_STALE_SECONDS", 1)
+    stale = updir / ("a" * 32 + ".pdf")
+    stale.write_bytes(b"old")
+    old = time.time() - 10
+    os.utime(stale, (old, old))
+    _open_and_get_token(client, _pdf_bytes())   # triggers the sweep
+    assert not stale.exists()

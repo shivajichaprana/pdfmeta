@@ -733,6 +733,34 @@ def test_xmp_packet_returns_xml(blank_pdf):
     assert "<x:xmpmeta" in packet or "<?xpacket" in packet
 
 
+def test_replace_docinfo(tmp_path):
+    path = tmp_path / "r.pdf"
+    _pdf_with_docinfo_only(path)  # Title + Author
+    with PDFMetadataEditor(path) as ed:
+        ed.set_field("copyright", "© keep")   # an XMP-only tag
+        ed.replace_docinfo({"Title": "Only Title", "Department": "Finance"})
+        ed.save()
+    with PDFMetadataEditor(path) as ed:
+        docinfo = ed.read_docinfo()
+        allmeta = ed.read_all()
+    assert docinfo == {"Title": "Only Title", "Department": "Finance"}
+    assert "Author" not in docinfo                     # dropped row removed
+    assert allmeta["XMP"].get("dc:rights") == "© keep"  # XMP-only tag preserved
+
+
+def test_cli_run_merge(tmp_path, capsys):
+    pdf_dir, json_dir, out_dir = _dirs(tmp_path)
+    _make_pdf(pdf_dir / "a.pdf", "Keep Me")
+    (json_dir / "m.json").write_text(json.dumps({"Author": "Added"}))
+    rc = main(["run", "--merge", "--pdf-dir", str(pdf_dir),
+               "--json-dir", str(json_dir), "--out-dir", str(out_dir)])
+    assert rc == 0
+    with PDFMetadataEditor(out_dir / "a.pdf") as ed:
+        data = ed.read_docinfo()
+    assert data["Title"] == "Keep Me"      # kept by --merge
+    assert data["Author"] == "Added"
+
+
 def test_cli_run(tmp_path, capsys):
     pdf_dir, json_dir, out_dir = _dirs(tmp_path)
     _make_pdf(pdf_dir / "a.pdf")

@@ -13,17 +13,16 @@ from __future__ import annotations
 import re
 import secrets
 import tempfile
+import time
 from pathlib import Path
 
 from flask import (
     Flask,
-    Response,
     abort,
-    redirect,
+    after_this_request,
     render_template_string,
     request,
     send_file,
-    url_for,
 )
 
 from .editor import PDFMetadataEditor, PDFMetadataError
@@ -32,6 +31,7 @@ from .editor import PDFMetadataEditor, PDFMetadataError
 _UPLOAD_DIR = Path(tempfile.gettempdir()) / "pdfmeta_gui"
 _TOKEN_RE = re.compile(r"^[0-9a-f]{32}$")
 _MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+_STALE_SECONDS = 3600  # remove abandoned uploads older than an hour
 
 
 def _token_path(token: str) -> Path:
@@ -39,6 +39,28 @@ def _token_path(token: str) -> Path:
     if not _TOKEN_RE.match(token or ""):
         abort(400, "Invalid document token.")
     return _UPLOAD_DIR / f"{token}.pdf"
+
+
+def _sweep_stale() -> None:
+    """Delete abandoned upload temp files so they don't accumulate forever."""
+    try:
+        cutoff = time.time() - _STALE_SECONDS
+        for f in _UPLOAD_DIR.glob("*.pdf"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    f.unlink(missing_ok=True)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
+def _safe_download_name(raw: str) -> str:
+    """Turn a user-supplied filename into a safe PDF download name."""
+    name = re.sub(r"[\r\n\t]", "", Path(raw or "").name).strip() or "edited.pdf"
+    if not name.lower().endswith(".pdf"):
+        name += ".pdf"
+    return name
 
 
 _PAGE = """<!doctype html>
@@ -163,6 +185,7 @@ def create_app() -> Flask:
             return render_template_string(_PAGE, token=None,
                                           error="Please choose a PDF file.")
         _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        _sweep_stale()  # clear out any abandoned uploads
         token = secrets.token_hex(16)
         path = _UPLOAD_DIR / f"{token}.pdf"
         uploaded.save(path)
@@ -194,11 +217,20 @@ def create_app() -> Flask:
         except PDFMetadataError as exc:
             return render_template_string(
                 _PAGE, token=None, error=f"Could not apply changes: {exc}")
-        download_name = request.form.get("filename") or "edited.pdf"
-        if not download_name.lower().endswith(".pdf"):
-            download_name += ".pdf"
-        response = send_file(path, as_attachment=True,
-                             download_name=download_name, mimetype="application/pdf")
-        return response
+
+        @after_this_request
+        def _cleanup(response):
+            # Remove the temp file once the download has been served. On POSIX
+            # send_file has already read it; on Windows the handle may still be
+            # open, in which case _sweep_stale() reclaims it on a later /open.
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return response
+
+        download_name = _safe_download_name(request.form.get("filename", ""))
+        return send_file(path, as_attachment=True,
+                         download_name=download_name, mimetype="application/pdf")
 
     return app
