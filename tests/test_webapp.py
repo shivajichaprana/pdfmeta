@@ -79,6 +79,12 @@ def test_index_shows_upload_form(client):
     assert b"Drag a PDF here" in resp.data
 
 
+def test_page_has_dark_mode_and_a11y(client):
+    html = client.get("/").data.decode()
+    assert "prefers-color-scheme: dark" in html  # adapts to system dark mode
+    assert "focus-visible" in html  # keyboard focus styles
+
+
 def test_gui_shows_and_edits_xmp_field(client, tmp_path):
     data = _pdf_with_copyright(tmp_path)
     resp = client.post(

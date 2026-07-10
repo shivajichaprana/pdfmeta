@@ -104,43 +104,60 @@ _PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pdfmeta — PDF metadata editor</title>
 <style>
-  :root { --line:#e2e4e8; --brand:#2b6cb0; --bg:#f7f8fa; --danger:#c0392b; }
+  :root {
+    --line:#e2e4e8; --brand:#2b6cb0; --bg:#f7f8fa; --danger:#c0392b;
+    --card:#ffffff; --text:#1a1f27; --muted:#6b7280; --input-bg:#ffffff;
+    --ghost-bg:#eef1f5; --code-bg:#eef1f5; --drop-over:#f0f6ff;
+    --flash-bg:#fdecea; --flash-border:#f5c6cb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --line:#3a3f47; --brand:#5b9bd5; --bg:#14171c; --danger:#e57367;
+      --card:#1e222a; --text:#e6e8eb; --muted:#9aa1ac; --input-bg:#252a33;
+      --ghost-bg:#2a2f38; --code-bg:#2a2f38; --drop-over:#1f2937;
+      --flash-bg:#3a2320; --flash-border:#5c332e;
+    }
+  }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-         margin: 0; background: var(--bg); color: #1a1f27; }
-  header { background: #fff; border-bottom: 1px solid var(--line); padding: 18px 24px; }
+         margin: 0; background: var(--bg); color: var(--text); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 18px 24px; }
   header h1 { margin: 0; font-size: 20px; }
-  header p { margin: 4px 0 0; color: #6b7280; font-size: 13px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
   main { max-width: 820px; margin: 28px auto; padding: 0 20px; }
-  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
           padding: 22px; margin-bottom: 20px; }
   .drop { display: block; text-align: center; padding: 38px 30px; border: 2px dashed var(--line);
           border-radius: 10px; cursor: pointer; transition: background .12s, border-color .12s; }
-  .drop:hover { border-color: #b9c0ca; }
-  .drop.over { border-color: var(--brand); background: #f0f6ff; }
+  .drop:hover { border-color: var(--brand); }
+  .drop.over { border-color: var(--brand); background: var(--drop-over); }
   .drop-emoji { font-size: 26px; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0;
           margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
-  input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
-                     border-radius: 6px; font-size: 14px; }
+  input[type=text], input[type=file] { width: 100%; padding: 8px 10px;
+          border: 1px solid var(--line); border-radius: 6px; font-size: 14px;
+          background: var(--input-bg); color: var(--text); }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 12px; text-transform: uppercase;
-       letter-spacing: .04em; color: #6b7280; padding: 6px 8px; }
+       letter-spacing: .04em; color: var(--muted); padding: 6px 8px; }
   td { padding: 5px 8px; vertical-align: middle; }
   td.k { width: 34%; } td.x { width: 42px; text-align: center; }
-  .btn { border: 0; border-radius: 7px; padding: 10px 16px; font-size: 14px;
-         cursor: pointer; }
+  .btn { border: 0; border-radius: 7px; padding: 10px 16px; font-size: 14px; cursor: pointer; }
   .btn.primary { background: var(--brand); color: #fff; }
-  .btn.ghost { background: #eef1f5; color: #1a1f27; }
+  .btn.ghost { background: var(--ghost-bg); color: var(--text); }
   .btn.del { background: transparent; color: var(--danger); font-size: 18px;
              line-height: 1; padding: 4px 8px; }
-  .btn.danger { background: transparent; color: var(--danger); border: 1px solid #e6b3ad; }
-  .btn.danger:hover { background: #fdecea; }
-  .row-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
-  .flash { background: #fdecea; color: var(--danger); border: 1px solid #f5c6cb;
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn.danger:hover { background: var(--flash-bg); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .row-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+  .flash { background: var(--flash-bg); color: var(--danger); border: 1px solid var(--flash-border);
            padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
-  .muted { color: #6b7280; font-size: 13px; }
-  code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--brand); }
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  .drop:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -301,6 +318,16 @@ _PAGE = """<!doctype html>
     });
     input.addEventListener('change', function () { show(); form.submit(); });
   })();
+
+  // Prevent double-submits and give feedback while a download is prepared.
+  document.addEventListener('submit', function (e) {
+    var b = e.submitter;
+    if (!b || b.type !== 'submit') return;
+    var label = b.textContent;
+    b.disabled = true;
+    b.textContent = 'Working…';
+    setTimeout(function () { b.disabled = false; b.textContent = label; }, 4000);
+  });
 </script>
 </body>
 </html>
