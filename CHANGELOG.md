@@ -21,6 +21,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and a batch mode to tag many PDFs at once and download them as a zip.
 - GUI polish: automatic dark mode, keyboard focus styles, and button feedback
   that prevents double-submits.
+- GUI: a Quit button that stops the local server (no need to find the
+  terminal), a "preparing your download" confirmation, and a favicon.
 - GUI security: the local server only accepts requests addressed to
   localhost (defeats DNS-rebinding) and rejects cross-origin POSTs (CSRF), so a
   website you visit can't reach the editor while it runs.

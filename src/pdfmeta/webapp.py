@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import re
 import secrets
 import shutil
 import tempfile
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -80,6 +82,19 @@ def _safe_download_name(raw: str) -> str:
     return name
 
 
+def _shutdown_soon(delay: float = 0.4) -> None:
+    """Stop the local server shortly after the current response is sent."""
+    threading.Timer(delay, lambda: os._exit(0)).start()
+
+
+_GOODBYE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>pdfmeta — stopped</title>
+<style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+text-align:center;margin:14% 20px;color:#4b5563}</style></head>
+<body><h2 style="color:#1a1f27">pdfmeta has stopped.</h2>
+<p>You can close this tab now.</p></body></html>"""
+
+
 def _serve_and_cleanup(path: Path, filename: str) -> Response:
     """Send the edited PDF as a download, then delete the temp file."""
 
@@ -105,6 +120,7 @@ _PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pdfmeta — PDF metadata editor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232b6cb0'/><text x='8' y='12' font-size='11' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>P</text></svg>">
 <style>
   :root {
     --line:#e2e4e8; --brand:#2b6cb0; --bg:#f7f8fa; --danger:#c0392b;
@@ -123,9 +139,12 @@ _PAGE = """<!doctype html>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
          margin: 0; background: var(--bg); color: var(--text); }
-  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 18px 24px; }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 18px 24px;
+           display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   header h1 { margin: 0; font-size: 20px; }
   header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  #toast { display: none; position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+           background: #1a1f27; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; }
   main { max-width: 820px; margin: 28px auto; padding: 0 20px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
           padding: 22px; margin-bottom: 20px; }
@@ -164,8 +183,14 @@ _PAGE = """<!doctype html>
 </head>
 <body>
 <header>
-  <h1>pdfmeta</h1>
-  <p>Edit PDF metadata locally — your file never leaves this computer.</p>
+  <div>
+    <h1>pdfmeta</h1>
+    <p>Edit PDF metadata locally — your file never leaves this computer.</p>
+  </div>
+  <form method="post" action="{{ url_for('quit_app') }}">
+    <button class="btn ghost" type="submit"
+            onclick="return confirm('Stop the pdfmeta editor?');">Quit</button>
+  </form>
 </header>
 <main>
   {% if error %}<div class="flash">{{ error }}</div>{% endif %}
@@ -176,7 +201,7 @@ _PAGE = """<!doctype html>
       <strong>{{ batch.files|length }}</strong> PDF(s) you uploaded. The same
       values are written to <em>all</em> of them, and each file's other metadata
       is replaced to match. Leave it empty to just strip metadata from all.</p>
-    <form method="post" action="{{ url_for('batch_apply') }}">
+    <form method="post" action="{{ url_for('batch_apply') }}" data-download="1">
       <input type="hidden" name="token" value="{{ batch.token }}">
       <table>
         <thead><tr><th>Tag</th><th>Value</th><th></th></tr></thead>
@@ -231,7 +256,7 @@ _PAGE = """<!doctype html>
       document's metadata tags (Document Info and XMP). Change a value, delete a
       row, or add a new tag (e.g. <code>copyright</code>, <code>language</code>),
       then click <strong>Modify &amp; download</strong>.</p>
-    <form method="post" action="{{ url_for('save_pdf') }}">
+    <form method="post" action="{{ url_for('save_pdf') }}" data-download="1">
       <input type="hidden" name="token" value="{{ token }}">
       <input type="hidden" name="filename" value="{{ filename }}">
       <table>
@@ -277,6 +302,7 @@ _PAGE = """<!doctype html>
   {% endif %}
   {% endif %}
 </main>
+<div id="toast">Preparing your download…</div>
 <script>
   function addRow() {
     var tr = document.createElement('tr');
@@ -323,6 +349,10 @@ _PAGE = """<!doctype html>
 
   // Prevent double-submits and give feedback while a download is prepared.
   document.addEventListener('submit', function (e) {
+    if (e.target.dataset && e.target.dataset.download) {
+      var t = document.getElementById('toast');
+      if (t) { t.style.display = 'block'; setTimeout(function () { t.style.display = 'none'; }, 4000); }
+    }
     var b = e.submitter;
     if (!b || b.type !== 'submit') return;
     var label = b.textContent;
@@ -487,5 +517,12 @@ def create_app() -> Flask:
             download_name="pdfmeta_edited.zip",
             mimetype="application/zip",
         )
+
+    @app.post("/quit")
+    def quit_app() -> str:
+        # Stop the server so the user doesn't have to find the terminal.
+        if not app.config.get("TESTING"):
+            _shutdown_soon()
+        return _GOODBYE
 
     return app

@@ -85,6 +85,19 @@ def test_page_has_dark_mode_and_a11y(client):
     assert "focus-visible" in html  # keyboard focus styles
 
 
+def test_page_has_favicon_and_quit(client):
+    html = client.get("/").data.decode()
+    assert 'rel="icon"' in html  # favicon
+    assert ">Quit<" in html  # quit button
+
+
+def test_quit_returns_goodbye(client):
+    # In TESTING mode the server isn't actually stopped.
+    resp = client.post("/quit")
+    assert resp.status_code == 200
+    assert b"pdfmeta has stopped" in resp.data
+
+
 def test_gui_shows_and_edits_xmp_field(client, tmp_path):
     data = _pdf_with_copyright(tmp_path)
     resp = client.post(
