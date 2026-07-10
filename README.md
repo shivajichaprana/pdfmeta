@@ -1,6 +1,7 @@
 # pdfmeta
 
 [![CI](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml/badge.svg)](https://github.com/shivajichaprana/pdfmeta/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pdfmeta.svg)](https://pypi.org/project/pdfmeta/)
 [![codecov](https://codecov.io/gh/shivajichaprana/pdfmeta/branch/main/graph/badge.svg)](https://codecov.io/gh/shivajichaprana/pdfmeta)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
@@ -29,7 +30,7 @@ and download the result — everything happens on your own computer.
 > First time on macOS: if you see a security warning, right-click the file and
 > choose **Open**, then **Open** again. You only need to do this once.
 
-![The pdfmeta browser editor](docs/gui-screenshot.png)
+![The pdfmeta browser editor](https://raw.githubusercontent.com/shivajichaprana/pdfmeta/main/docs/gui-screenshot.png)
 
 ## For developers: the command line
 
@@ -43,10 +44,18 @@ directly:
 
 ## Installation
 
+Once released to PyPI:
+
+```bash
+pipx install "pdfmeta[gui]"     # or: pip install "pdfmeta[gui]"
+```
+
+Or from source:
+
 ```bash
 git clone https://github.com/shivajichaprana/pdfmeta.git
 cd pdfmeta
-pip install -e .            # installs pdfmeta and its one dependency (pikepdf)
+pip install -e ".[gui]"         # [gui] adds the browser editor (Flask)
 ```
 
 Requires Python 3.9+. If the `pdfmeta` command isn't on your PATH, use
