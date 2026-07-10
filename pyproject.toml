@@ -34,6 +34,7 @@ Issues = "https://github.com/shivajichaprana/pdfmeta/issues"
 
 [project.optional-dependencies]
 gui = ["flask>=2.0"]
+e2e = ["playwright>=1.40"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "hypothesis>=6.0", "flask>=2.0"]
 
 [project.scripts]
@@ -62,6 +63,7 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
 [tool.ruff.lint.per-file-ignores]
 # Tests import after pytest.importorskip; nested `with` blocks read fine here.
 "tests/*" = ["E402", "SIM117"]
+"tests/e2e/*" = ["E402", "SIM117"]
 # webapp.py embeds an HTML/CSS/JS template with unavoidably long lines.
 "src/pdfmeta/webapp.py" = ["E501"]
 
