@@ -136,6 +136,34 @@ def test_save_applies_edits_and_downloads(client, tmp_path):
     assert "Author" not in data  # deleted (omitted) tag is gone
 
 
+def test_scrub_removes_everything(client, tmp_path):
+    token = _open_and_get_token(client, _pdf_bytes())
+    resp = client.post("/scrub", data=MultiDict([("token", token), ("filename", "f.pdf")]))
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/pdf"
+    out = tmp_path / "clean.pdf"
+    out.write_bytes(resp.data)
+    with PDFMetadataEditor(out) as ed:
+        assert ed.read_all() == {"Document Info": {}, "XMP": {}}
+
+
+def test_scrub_bad_token(client):
+    resp = client.post("/scrub", data={"token": "nope"})
+    assert resp.status_code == 400
+
+
+def test_editor_page_has_scrub_button(client):
+    token = _open_and_get_token(client, _pdf_bytes())
+    # Re-open to get the editor page body containing the button.
+    resp = client.post(
+        "/open",
+        data={"pdf": (io.BytesIO(_pdf_bytes()), "f.pdf")},
+        content_type="multipart/form-data",
+    )
+    assert "Remove all metadata" in resp.data.decode()
+    assert token  # token flow works
+
+
 def test_save_with_bad_token(client):
     resp = client.post("/save", data={"token": "notavalidtoken", "key": "Title", "value": "X"})
     # invalid token -> 400 from _token_path guard

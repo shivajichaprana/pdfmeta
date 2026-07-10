@@ -65,6 +65,25 @@ def _safe_download_name(raw: str) -> str:
     return name
 
 
+def _serve_and_cleanup(path: Path, filename: str) -> Response:
+    """Send the edited PDF as a download, then delete the temp file."""
+
+    @after_this_request
+    def _cleanup(response: Response) -> Response:
+        # send_file has read the file on POSIX; on Windows the handle may still
+        # be open, in which case _sweep_stale() reclaims it on a later /open.
+        with contextlib.suppress(OSError):
+            path.unlink(missing_ok=True)
+        return response
+
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=_safe_download_name(filename),
+        mimetype="application/pdf",
+    )
+
+
 _PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -102,6 +121,8 @@ _PAGE = """<!doctype html>
   .btn.ghost { background: #eef1f5; color: #1a1f27; }
   .btn.del { background: transparent; color: var(--danger); font-size: 18px;
              line-height: 1; padding: 4px 8px; }
+  .btn.danger { background: transparent; color: var(--danger); border: 1px solid #e6b3ad; }
+  .btn.danger:hover { background: #fdecea; }
   .row-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
   .flash { background: #fdecea; color: var(--danger); border: 1px solid #f5c6cb;
            padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
@@ -160,6 +181,11 @@ _PAGE = """<!doctype html>
       <div class="row-actions">
         <button type="button" class="btn ghost" onclick="addRow()">+ Add tag</button>
         <button type="submit" class="btn primary">Modify &amp; download</button>
+        <button type="submit" class="btn danger"
+                formaction="{{ url_for('scrub_pdf') }}"
+                onclick="return confirm('Remove ALL metadata and download a clean copy?');">
+          Remove all metadata
+        </button>
         <a class="muted" href="{{ url_for('index') }}">Start over</a>
       </div>
     </form>
@@ -265,19 +291,24 @@ def create_app() -> Flask:
             return render_template_string(
                 _PAGE, token=None, error=f"Could not apply changes: {exc}"
             )
+        return _serve_and_cleanup(path, request.form.get("filename", ""))
 
-        @after_this_request
-        def _cleanup(response: Response) -> Response:
-            # Remove the temp file once the download has been served. On POSIX
-            # send_file has already read it; on Windows the handle may still be
-            # open, in which case _sweep_stale() reclaims it on a later /open.
-            with contextlib.suppress(OSError):
-                path.unlink(missing_ok=True)
-            return response
-
-        download_name = _safe_download_name(request.form.get("filename", ""))
-        return send_file(
-            path, as_attachment=True, download_name=download_name, mimetype="application/pdf"
-        )
+    @app.post("/scrub")
+    def scrub_pdf() -> Response | str:
+        token = request.form.get("token", "")
+        path = _token_path(token)
+        if not path.is_file():
+            return render_template_string(
+                _PAGE, token=None, error="That editing session expired. Please open the PDF again."
+            )
+        try:
+            with PDFMetadataEditor(path) as editor:
+                editor.clear()
+                editor.save(path)
+        except PDFMetadataError as exc:
+            return render_template_string(
+                _PAGE, token=None, error=f"Could not clean the file: {exc}"
+            )
+        return _serve_and_cleanup(path, request.form.get("filename", ""))
 
     return app
