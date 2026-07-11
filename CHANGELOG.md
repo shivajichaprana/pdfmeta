@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-11
+
 ### Added
 - Double-click launchers (`Open pdfmeta editor.command` for macOS and a `.bat`
   for Windows) that set up and open the browser editor with no terminal use.
@@ -85,5 +87,6 @@ Initial release.
 - `src/` layout, `python -m pdfmeta` entry point, PEP 561 `py.typed` marker, and
   GitHub Actions CI across Python 3.9–3.13.
 
-[Unreleased]: https://github.com/shivajichaprana/pdfmeta/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/shivajichaprana/pdfmeta/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/shivajichaprana/pdfmeta/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/shivajichaprana/pdfmeta/releases/tag/v0.1.0

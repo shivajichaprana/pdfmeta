@@ -14,4 +14,4 @@ from .editor import (
 )
 
 __all__ = ["DATE_FIELDS", "STANDARD_FIELDS", "XMP_FIELDS", "PDFMetadataEditor"]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
