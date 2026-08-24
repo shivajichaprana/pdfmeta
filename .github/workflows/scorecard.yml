@@ -21,7 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run analysis
-        uses: ossf/scorecard-action@v2
+        uses: ossf/scorecard-action@v2.4.4 # "v2" is not a published tag
         with:
           results_file: results.sarif
           results_format: sarif
