@@ -106,18 +106,21 @@ text-align:center;margin:14% 20px;color:#4b5563}</style></head>
 
 
 def _serve_and_cleanup(path: Path, filename: str) -> Response:
-    """Send the edited PDF as a download, then delete the temp file."""
+    """Send the edited PDF as a download, then delete the temp file.
 
-    @after_this_request
-    def _cleanup(response: Response) -> Response:
-        # send_file has read the file on POSIX; on Windows the handle may still
-        # be open, in which case _sweep_stale() reclaims it on a later /open.
-        with contextlib.suppress(OSError):
-            path.unlink(missing_ok=True)
-        return response
-
+    The bytes are read up front and served from memory so the temp file can be
+    removed before the response is returned. Streaming straight from the path
+    left the file behind on Windows, where send_file still holds the handle when
+    the after-request hook runs and unlink fails: the leftover then sat in the
+    upload directory until _sweep_stale() aged it out, which only happens on a
+    later request. Uploads are capped at _MAX_UPLOAD_BYTES, so buffering one is
+    bounded, and the batch download already works this way.
+    """
+    data = path.read_bytes()
+    with contextlib.suppress(OSError):
+        path.unlink(missing_ok=True)
     return send_file(
-        path,
+        io.BytesIO(data),
         as_attachment=True,
         download_name=_safe_download_name(filename),
         mimetype="application/pdf",
