@@ -65,7 +65,16 @@ def _pretty_qname(clark: str) -> str:
 
 
 def _stringify(value: object) -> str:
-    """Render an XMP value (which may be a list/tuple) as a readable string."""
+    """Render an XMP value (which may be a list, tuple or set) as a readable string.
+
+    pikepdf hands back an ``rdf:Seq`` as a list and an ``rdf:Bag`` as a set, and
+    ``dc:language``, ``dc:rights`` and ``xmpRights:Owner`` are all Bags. Sets are
+    sorted before joining so a given document always reads back the same string;
+    ordered containers keep the order the document gave them. Without the set
+    branch the value fell through to ``str()`` and a reader saw ``{'fr'}``.
+    """
+    if isinstance(value, (set, frozenset)):
+        return ", ".join(sorted(str(v) for v in value))
     if isinstance(value, (list, tuple)):
         return ", ".join(str(v) for v in value)
     return str(value)
