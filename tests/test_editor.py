@@ -488,7 +488,10 @@ def test_lowercase_owner_still_goes_to_xmp(blank_pdf):
         ed.set_field("owner", "Shivaji")  # lowercase -> XMP xmpRights:Owner
         ed.save()
     with pikepdf.open(blank_pdf) as pdf:
-        assert pdf.open_metadata().get("xmpRights:Owner") == ["Shivaji"]
+        # xmpRights:Owner is an rdf:Bag, and pikepdf represents a Bag as a set
+        # from 10.13 onwards and a list before that. Assert the contents, not
+        # whichever container the current pikepdf happens to use.
+        assert list(pdf.open_metadata().get("xmpRights:Owner")) == ["Shivaji"]
 
 
 def test_metadata_date_accepts_pdf_date(blank_pdf):
